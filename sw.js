@@ -1,0 +1,28 @@
+const CACHE = 'go2norway-v18';
+const ASSETS = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './icon-192.png',
+  './icon-512.png',
+  './maskable-icon-512.png'
+];
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
+  self.skipWaiting();
+});
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request).then(resp => resp || fetch(event.request).then(networkResp => {
+      const copy = networkResp.clone();
+      caches.open(CACHE).then(cache => cache.put(event.request, copy)).catch(()=>{});
+      return networkResp;
+    }).catch(() => caches.match('./index.html')))
+  );
+});
