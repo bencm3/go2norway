@@ -1,9 +1,9 @@
-const CACHE = 'go2norway-v24';
+const CACHE = 'go2norway-v30';
 const ASSETS = [
   './',
   './index.html',
-  './index.html?v=24',
-  './Go2Norway_v24_status_v_hlavicce.html',
+  './index.html?v=30',
+  './Go2Norway_v30_highlights_rich_info.html',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
