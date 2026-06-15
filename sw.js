@@ -1,4 +1,4 @@
-const CACHE = 'go2norway-v18';
+const CACHE = 'go2norway-v20';
 const ASSETS = [
   './',
   './index.html',
