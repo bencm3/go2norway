@@ -2,7 +2,7 @@
   "name": "Go2Norway",
   "short_name": "Go2Norway",
   "description": "Interaktivní itinerář motorkářské cesty do Norska s online synchronizací.",
-  "start_url": "./index.html?v=22",
+  "start_url": "./index.html?v=23",
   "scope": "./",
   "display": "standalone",
   "background_color": "#05070b",
