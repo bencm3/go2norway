@@ -1,9 +1,9 @@
-const CACHE = 'go2norway-v23';
+const CACHE = 'go2norway-v24';
 const ASSETS = [
   './',
   './index.html',
-  './index.html?v=23',
-  './Go2Norway_v23_tenka_online_lista_marquee.html',
+  './index.html?v=24',
+  './Go2Norway_v24_status_v_hlavicce.html',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
