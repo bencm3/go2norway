@@ -1,7 +1,9 @@
-const CACHE = 'go2norway-v21';
+const CACHE = 'go2norway-v22';
 const ASSETS = [
   './',
   './index.html',
+  './index.html?v=22',
+  './Go2Norway_v22_online_status_autosave.html',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
@@ -19,10 +21,10 @@ self.addEventListener('activate', event => {
 });
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request).then(resp => resp || fetch(event.request).then(networkResp => {
+    fetch(event.request).then(networkResp => {
       const copy = networkResp.clone();
       caches.open(CACHE).then(cache => cache.put(event.request, copy)).catch(()=>{});
       return networkResp;
-    }).catch(() => caches.match('./index.html')))
+    }).catch(() => caches.match(event.request).then(resp => resp || caches.match('./index.html')))
   );
 });
