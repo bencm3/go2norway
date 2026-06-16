@@ -1,12 +1,11 @@
 {
   "name": "Go2Norway",
   "short_name": "Go2Norway",
-  "description": "Interaktivní itinerář motorkářské cesty do Norska s online synchronizací a galerií TOP 24 cílů.",
-  "start_url": "./index.html?v=30",
+  "start_url": "./index.html?v=34",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#05070b",
-  "theme_color": "#0e2f1e",
+  "background_color": "#0e1116",
+  "theme_color": "#0e1116",
   "icons": [
     {
       "src": "icon-192.png",
@@ -22,7 +21,7 @@
       "src": "maskable-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "maskable"
     }
   ]
 }
