@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
-<!-- go2no v86b: statické obrázky jsou v externím souboru go2no-assets-v86.js; service worker jej uloží pro offline použití. -->
+<!-- go2no v86c: oprava ikony poznámky; statické obrázky jsou v externím souboru go2no-assets-v86.js. -->
 <!-- go2no v70: navazuje na v69; obnovuje a vynucuje modrý čtverec čísla dne na kartách itineráře. -->
 <!-- go2no v66: dílčí mapy se při více položkách rolováním skládají pod hlavní mapu. -->
 <link rel="manifest" href="manifest.webmanifest">
@@ -1589,7 +1589,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     if(kind==='pause') return `<img class="tj-target-raster tj-target-raster-pause" src="${TJ_ICON_ASSETS.pause}" alt="">`;
     if(kind==='expense') return `<img class="tj-target-raster tj-target-raster-expense" src="${TJ_ICON_ASSETS.expense}" alt="">`;
     if(kind==='lodging') return `<img class="tj-target-raster tj-target-raster-lodging" src="${TJ_ICON_ASSETS.lodging}" alt="">`;
-    if(kind==='note') return `<img class="tj-target-raster tj-target-raster-note" src=go2noAsset("assets/v86/ui/action-note.png") alt="">`;
+    if(kind==='note') return `<img class="tj-target-raster tj-target-raster-note" src="${go2noAsset("assets/v86/ui/action-note.png")}" alt="">`;
     if(kind==='arrive') return `<img class="tj-target-raster tj-target-raster-arrive" src="${TJ_ICON_ASSETS.arrive}" alt="">`;
     return `<img class="tj-target-raster tj-target-raster-skip" src="${TJ_ICON_ASSETS.skip}" alt="">`;
   }
