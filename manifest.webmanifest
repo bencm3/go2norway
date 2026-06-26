@@ -1,6 +1,7 @@
 {
   "name": "go2no",
   "short_name": "go2no",
+  "id": "./go2no.html",
   "start_url": "./go2no.html",
   "scope": "./",
   "display": "standalone",
@@ -15,7 +16,8 @@
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

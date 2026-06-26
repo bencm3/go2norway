@@ -1,22 +1,30 @@
-# go2no
+# go2no v86 — obrázky v assets a offline cache
 
-Balíček pro nahrání do GitHub repozitáře a spuštění přes GitHub Pages.
+## Co se změnilo
 
-## Soubory
+- `go2no.html` už neobsahuje 214 vložených obrázků v base64. Statické mapy, fotografie etap, ikony a podklady jsou v `assets/v86/`.
+- Service worker po prvním otevření stáhne celý statický obsah do cache telefonu. Po úspěšné instalaci lze aplikaci používat offline ve stejném rozsahu jako načtený statický obsah.
+- Sedm problematických fotografií TOP60 bylo nahrazeno uživatelskými snímky: Sverd i fjell, Vinnufossen, Sala Silvergruva, Falu Gruva, LKAB Kiruna, Punkaharju a Saimaa.
+- Ostatních 53 fotografií TOP60 zatím zůstává na jejich současných vzdálených zdrojích. Jejich lokální archivace vyžaduje dodání nebo stažení konkrétních licenčně ověřených souborů; aplikace pro ně zachovává dosavadní funkčnost.
+- Export HTML zůstává samostatný: při exportu se použité mapy a lokální grafické podklady automaticky vloží zpět do vytvářené zálohy.
 
-- `go2no.html` – hlavní aplikace
-- `index.html` – automaticky otevře hlavní aplikaci z kořene GitHub Pages
-- `manifest.webmanifest` – manifest pro instalaci na plochu
-- `icon-192.png`, `icon-512.png` – ikony aplikace
-- `sw.js` – aktuální service worker; po prvním spuštění vyčistí zbytky cache ze starších verzí
+## Co nahrát
 
-## Nahrání na GitHub
+Nahraj **celý obsah tohoto adresáře** do kořene repozitáře, včetně podsložky `assets`. Nejde o ZIP k rozbalení na GitHubu: obsah složky je nutné nahrát tak, aby v repozitáři vznikla cesta `assets/v86/...`.
 
-1. Nahraj všechny soubory z tohoto balíčku přímo do kořene repozitáře.
-2. Při konfliktu potvrď nahrazení souborů stejného názvu.
-3. V GitHubu otevři Settings → Pages a ponech zdroj `main` a `/ (root)`.
-4. Po publikaci otevři adresu GitHub Pages. `index.html` přesměruje na `go2no.html`.
+Kořen repozitáře po nahrání obsahuje zejména:
 
-## Supabase online ukládání
+- `go2no.html`
+- `index.html`
+- `manifest.webmanifest`
+- `icon-192.png`, `icon-512.png`
+- `sw.js`
+- `assets/v86/...`
 
-Online synchronizace zůstává beze změny. Po prvním spuštění z GitHub Pages ověř přihlášení heslem. Pro záložní přihlášení e-mailem musí být přesná výsledná adresa `https://.../go2no.html` povolena v Supabase Authentication → URL Configuration → Redirect URLs.
+## Po nasazení
+
+1. Otevři GitHub Pages aplikaci online.
+2. Nech ji jednou plně doběhnout; service worker při tom uloží statický obsah do cache.
+3. Pro kontrolu pak aplikaci zavři a otevři znovu. Mapy a vložené fotografie etap musí zůstat k dispozici i bez signálu.
+
+Nastavení GitHub Pages, Supabase, IndexedDB, deníku a přihlášení se nemění.
