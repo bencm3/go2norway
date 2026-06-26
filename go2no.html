@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
-<!-- go2no v86d: ikona poznámky je přímo součástí HTML; ostatní statické obrázky jsou v externím souboru go2no-assets-v86.js. -->
+<!-- go2no v86k: opravuje autoritativní datum odjezdu v Dni 0 – ukládá jej v bezpečném ISO tvaru přes nativní kalendář, neumožní neplatným zápisem zneplatnit data etap; graf se opět řídí pouze tímto datem. Zachovává opravu aktivního GPS tlačítka, poklepání na modrý Den 0 pro sbalení a větší data startu/návratu v grafu. Ostatní statické obrázky jsou v externím souboru go2no-assets-v86.js. -->
 <!-- go2no v70: navazuje na v69; obnovuje a vynucuje modrý čtverec čísla dne na kartách itineráře. -->
 <!-- go2no v66: dílčí mapy se při více položkách rolováním skládají pod hlavní mapu. -->
 <link rel="manifest" href="manifest.webmanifest">
@@ -128,9 +128,9 @@ body.family-view .familybar{display:block}
 /* v82: denní osa plánu a skutečné jízdy – plán zůstává v pozadí, skutečnost je plná */
 .tj-trip-timeline{margin:12px 0 9px;padding:10px 10px 8px;border:1px solid #2a4059;border-radius:13px;background:linear-gradient(180deg,#101b2b,#0d1623);overflow:hidden}
 .tj-trip-timeline-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}.tj-trip-timeline-head b{font-size:11.5px;color:#dce9fa;letter-spacing:.01em}.tj-trip-timeline-head span{font-size:10px;color:#8396ad;white-space:nowrap}
-.tj-trip-timeline-grid{display:grid;grid-template-columns:47px minmax(0,1fr) 47px;gap:8px;align-items:stretch}.tj-timeline-anchor{border:1px solid #38516f;border-radius:9px;background:#132236;min-height:73px;padding:5px 3px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;box-shadow:inset 0 2px 0 #5ea9ff}.tj-timeline-anchor.is-return{box-shadow:inset 0 2px 0 #8f3546}.tj-timeline-anchor em{font-style:normal;font-size:8px;line-height:1;color:#9fb4ca;text-transform:uppercase;letter-spacing:.06em}.tj-timeline-anchor strong{font-size:18px;line-height:1.05;color:#f5f9ff;margin-top:3px}.tj-timeline-anchor small{font-size:8.5px;line-height:1.1;color:#b8c8d9;margin-top:2px;white-space:nowrap}
-.tj-timeline-bars{height:73px;display:grid;grid-template-columns:repeat(var(--days),minmax(2px,1fr));gap:3px;align-items:stretch;position:relative;border-bottom:1px solid #32465f;background:repeating-linear-gradient(to top,transparent 0,transparent 23px,rgba(177,203,232,.08) 24px)}.tj-timeline-day{min-width:0;position:relative;height:100%;display:flex;align-items:flex-end;justify-content:center}.tj-timeline-plan,.tj-timeline-actual{position:absolute;bottom:0;border-radius:4px 4px 1px 1px}.tj-timeline-plan{height:calc(var(--plan-h)*1%);width:100%;min-height:var(--plan-min);background:rgba(97,149,207,.27);border:1px solid rgba(123,175,230,.28);box-sizing:border-box}.tj-timeline-actual{height:calc(var(--actual-h)*1%);width:58%;min-height:var(--actual-min);background:linear-gradient(180deg,#61b0ff,#2476d2);box-shadow:0 0 8px rgba(69,150,245,.38)}.tj-timeline-day.is-free .tj-timeline-plan{background:rgba(139,50,67,.34);border-color:rgba(191,89,108,.35)}.tj-timeline-day.is-free .tj-timeline-actual{background:linear-gradient(180deg,#c86175,#873143);box-shadow:0 0 8px rgba(163,57,78,.35)}.tj-timeline-day.is-current:after{content:"";position:absolute;left:-1px;right:-1px;bottom:-4px;height:3px;border-radius:3px;background:#f4cb5a;box-shadow:0 0 7px rgba(244,203,90,.5)}.tj-trip-timeline-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:5px;color:#7f94ad;font-size:9px;line-height:1.1}.tj-trip-timeline-foot span:last-child{text-align:right}.tj-timeline-key{display:inline-flex;align-items:center;gap:4px}.tj-timeline-key i{width:9px;height:5px;border-radius:3px;background:rgba(97,149,207,.34);border:1px solid rgba(123,175,230,.3)}.tj-timeline-key i.actual{background:#4b9cf4;border:0}
-@media(max-width:620px){.tj-trip-timeline{padding:8px 7px 7px}.tj-trip-timeline-grid{grid-template-columns:42px minmax(0,1fr) 42px;gap:5px}.tj-timeline-anchor{min-height:66px;padding:4px 2px}.tj-timeline-anchor strong{font-size:16px}.tj-timeline-anchor small{font-size:7.5px}.tj-timeline-bars{height:66px;gap:2px}.tj-trip-timeline-head span{font-size:9px}.tj-trip-timeline-foot{font-size:8.5px}}
+.tj-trip-timeline-grid{display:grid;grid-template-columns:56px minmax(0,1fr) 56px;gap:8px;align-items:stretch}.tj-timeline-anchor{border:1px solid #38516f;border-radius:9px;background:#132236;min-height:88px;padding:6px 3px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;box-shadow:inset 0 2px 0 #5ea9ff}.tj-timeline-anchor.is-return{box-shadow:inset 0 2px 0 #8f3546}.tj-timeline-anchor em{font-style:normal;font-size:8px;line-height:1;color:#9fb4ca;text-transform:uppercase;letter-spacing:.06em}.tj-timeline-anchor strong{font-size:36px;line-height:.95;color:#f5f9ff;margin-top:3px;letter-spacing:-.04em}.tj-timeline-anchor small{font-size:10px;line-height:1.1;color:#b8c8d9;margin-top:3px;white-space:nowrap}
+.tj-timeline-bars{height:88px;display:grid;grid-template-columns:repeat(var(--days),minmax(2px,1fr));gap:3px;align-items:stretch;position:relative;border-bottom:1px solid #32465f;background:repeating-linear-gradient(to top,transparent 0,transparent 28px,rgba(177,203,232,.08) 29px)}.tj-timeline-day{min-width:0;position:relative;height:100%;display:flex;align-items:flex-end;justify-content:center}.tj-timeline-plan,.tj-timeline-actual{position:absolute;bottom:0;border-radius:4px 4px 1px 1px}.tj-timeline-plan{height:calc(var(--plan-h)*1%);width:100%;min-height:var(--plan-min);background:rgba(97,149,207,.27);border:1px solid rgba(123,175,230,.28);box-sizing:border-box}.tj-timeline-actual{height:calc(var(--actual-h)*1%);width:58%;min-height:var(--actual-min);background:linear-gradient(180deg,#61b0ff,#2476d2);box-shadow:0 0 8px rgba(69,150,245,.38)}.tj-timeline-day.is-free .tj-timeline-plan{background:rgba(139,50,67,.34);border-color:rgba(191,89,108,.35)}.tj-timeline-day.is-free .tj-timeline-actual{background:linear-gradient(180deg,#c86175,#873143);box-shadow:0 0 8px rgba(163,57,78,.35)}.tj-timeline-day.is-current:after{content:"";position:absolute;left:-1px;right:-1px;bottom:-4px;height:3px;border-radius:3px;background:#f4cb5a;box-shadow:0 0 7px rgba(244,203,90,.5)}.tj-trip-timeline-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:5px;color:#7f94ad;font-size:9px;line-height:1.1}.tj-trip-timeline-foot span:last-child{text-align:right}.tj-timeline-key{display:inline-flex;align-items:center;gap:4px}.tj-timeline-key i{width:9px;height:5px;border-radius:3px;background:rgba(97,149,207,.34);border:1px solid rgba(123,175,230,.3)}.tj-timeline-key i.actual{background:#4b9cf4;border:0}
+@media(max-width:620px){.tj-trip-timeline{padding:8px 7px 7px}.tj-trip-timeline-grid{grid-template-columns:52px minmax(0,1fr) 52px;gap:5px}.tj-timeline-anchor{min-height:82px;padding:5px 2px}.tj-timeline-anchor strong{font-size:32px;line-height:.95}.tj-timeline-anchor small{font-size:9px;margin-top:3px}.tj-timeline-bars{height:82px;gap:2px;background:repeating-linear-gradient(to top,transparent 0,transparent 26px,rgba(177,203,232,.08) 27px)}.tj-trip-timeline-head span{font-size:9px}.tj-trip-timeline-foot{font-size:8.5px}}
 
 /* původní textová tlačítka dashboardu nahrazena logy */
 
@@ -425,6 +425,19 @@ body.editing .ed:not(.editing){cursor:text;box-shadow:0 0 0 1px rgba(92,169,255,
 .prep-card .chead{position:relative;align-items:flex-start}
 /* v65: Den 0 je výchozím stavem sbalený; ovládá se pouze poklepáním na vlastní záhlaví, nikoli na dashboard. */
 body:not(.editing) .prep-card .prep-card-head{cursor:pointer;user-select:none;touch-action:manipulation}
+/* Modrý Den 0 lze poklepáním sbalit i během Úprav; číslo 0 samo není editovatelný údaj. */
+.prep-card .prep-daybox-toggle{cursor:pointer;touch-action:manipulation}
+/* v86i: Datum odjezdu není běžný textový údaj. Nativní input type=date poskytuje
+   systémový minikalendář a zabraňuje uložení tvaru, který by rozbil dopočet dat. */
+.prep-date-control{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;background:var(--chip);border:1px dashed #3a465c;border-radius:12px;padding:7px 10px;min-height:38px}
+.prep-date-control label{display:flex;flex-direction:column;gap:3px;min-width:0;color:#8ea1b8;font-size:10px;line-height:1.05;font-weight:700;letter-spacing:.02em;text-transform:uppercase}
+.prep-date-control .prep-date-input{flex:1 1 166px;min-width:154px}
+.prep-date-control .prep-time-input{flex:0 1 96px;min-width:88px}
+.prep-date-control input{width:100%;box-sizing:border-box;min-height:30px;padding:3px 5px;border:0;border-bottom:1px solid rgba(126,160,200,.38);border-radius:0;background:transparent;color:#e8f2ff;font:inherit;font-size:14px;font-weight:700;letter-spacing:0;text-transform:none;outline:none;color-scheme:dark;cursor:pointer}
+.prep-date-control input:focus{border-bottom-color:#67aaf7;box-shadow:0 2px 0 rgba(88,164,255,.20)}
+.prep-date-status{margin-top:5px;color:#8ea1b8;font-size:11px;line-height:1.25}
+.prep-date-status.is-warning{color:#ffd36c}
+@media(max-width:420px){.prep-date-control{gap:7px}.prep-date-control .prep-date-input{flex-basis:100%;min-width:0}.prep-date-control .prep-time-input{flex:1 1 112px;min-width:0}}
 .prep-card .prep{max-height:1200px;opacity:1;overflow:hidden;transition:max-height .22s ease,opacity .18s ease,padding-top .22s ease,padding-bottom .22s ease}
 .prep-card.is-collapsed .prep{max-height:0;opacity:0;padding-top:0;padding-bottom:0;pointer-events:none}
 @media(prefers-reduced-motion:reduce){.prep-card .prep{transition:none}}
@@ -742,9 +755,28 @@ const EMBED_CFG={"cons":6.1,"refuel":20,"refuelMode":"manual","geoRadiusKm":100,
 .audit-top-btn.ok{color:#bfe9cf;border-color:#2b6c43;background:#102419}
 .audit-top-btn.warn{color:#fff0c8;border-color:#c28a22;background:#3a2b0f}
 .audit-top-btn.hard{color:#ffe0e0;border-color:#b94a4a;background:#351313}
-.geo-top-btn.on{color:#1b2a10;border-color:#ffe38a;background:#ffd65a;box-shadow:0 0 10px rgba(255,214,90,.25)}
-/* Aktivní GPS musí přebít stavovou barvu hlavičky (.top.online/.dirty/.saving/.error). */
-#geoBtn.geo-top-btn.on{color:#1b2a10;border-color:#ffe38a;background:#ffd65a;box-shadow:0 0 10px rgba(255,214,90,.45)}
+/*
+ * GPS tlačítko: aktivní stav nesmí převzít tmavé, částečně průhledné pozadí
+ * z .top.online/.dirty/.saving/.error. Na některých mobilních prohlížečích
+ * se tento vzhled projevil jako neprůhledná horní vrstva nad žlutým podkladem.
+ */
+#geoBtn.geo-top-btn{
+  -webkit-appearance:none;
+  appearance:none;
+  background-clip:padding-box;
+}
+#geoBtn.geo-top-btn.on,
+.top.online #geoBtn.geo-top-btn.on,
+.top.dirty #geoBtn.geo-top-btn.on,
+.top.saving #geoBtn.geo-top-btn.on,
+.top.error #geoBtn.geo-top-btn.on{
+  background:#ffd65a !important;
+  background-color:#ffd65a !important;
+  background-image:none !important;
+  border-color:#ffe38a !important;
+  color:#1b2a10 !important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.30),0 0 12px rgba(255,214,90,.72) !important;
+}
 .card.audit-soft{box-shadow:0 0 0 1px rgba(194,138,34,.55),0 2px 12px #0007}
 .card.audit-hard{box-shadow:0 0 0 1px rgba(185,74,74,.75),0 2px 12px #0007}
 .audit-chip{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;line-height:1;background:#332512;border:1px solid #a97920;color:#fff0c8;cursor:pointer;user-select:none}
@@ -922,7 +954,7 @@ const EMBED_CFG={"cons":6.1,"refuel":20,"refuelMode":"manual","geoRadiusKm":100,
       b.addEventListener('click', openAuditModal);
     }
     if(!document.getElementById('geoBtn')){
-      const g=document.createElement('button'); g.className='tbtn geo-top-btn'; g.id='geoBtn'; g.type='button'; g.title='Zvýraznit cíle v nastaveném okruhu od aktuální polohy'; g.textContent='📍';
+      const g=document.createElement('button'); g.className='tbtn geo-top-btn'; g.id='geoBtn'; g.type='button'; g.setAttribute('aria-pressed','false'); g.title='Zvýraznit cíle v nastaveném okruhu od aktuální polohy'; g.textContent='📍';
       const audit=document.getElementById('auditBtn'); top.insertBefore(g, audit ? audit.nextSibling : (document.getElementById('btnEdit')||top.lastChild));
       g.addEventListener('click', toggleGeoWatch);
     }
@@ -1042,9 +1074,26 @@ const EMBED_CFG={"cons":6.1,"refuel":20,"refuelMode":"manual","geoRadiusKm":100,
   // ---------- Poloha telefonu → žlutá ouška cílů v nastaveném okruhu ----------
   function setGeoButton(state,msg){
     const b=document.getElementById('geoBtn'); if(!b) return;
-    b.classList.toggle('on', !!state);
+    const active=!!state;
+    b.classList.toggle('on',active);
+    b.setAttribute('aria-pressed',active?'true':'false');
+
+    // Mobilní pojistka: vlastnosti jsou zapsány přímo na tlačítko s !important.
+    // Tím je aktivní žlutý povrch nezávislý na později vložených stylech či
+    // stavových třídách horní lišty (online / dirty / saving / error).
+    if(active){
+      b.style.setProperty('background','#ffd65a','important');
+      b.style.setProperty('background-color','#ffd65a','important');
+      b.style.setProperty('background-image','none','important');
+      b.style.setProperty('border-color','#ffe38a','important');
+      b.style.setProperty('color','#1b2a10','important');
+      b.style.setProperty('box-shadow','inset 0 0 0 1px rgba(255,255,255,.30),0 0 12px rgba(255,214,90,.72)','important');
+    }else{
+      ['background','background-color','background-image','border-color','color','box-shadow'].forEach(prop=>b.style.removeProperty(prop));
+    }
+
     const r=getGeoRadiusKm();
-    b.title=msg || (state ? `Poloha aktivní – cíle do ${r} km svítí žlutě` : `Zapnout polohu a zvýraznit cíle do ${r} km`);
+    b.title=msg || (active ? `Poloha aktivní – cíle do ${r} km svítí žlutě` : `Zapnout polohu a zvýraznit cíle do ${r} km`);
   }
   function toggleGeoWatch(){ if(geoWatchId!=null) stopGeoWatch(); else startGeoWatch(true); }
   function startGeoWatch(userGesture){
@@ -1494,9 +1543,16 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     }
     return result;
   }
+  function tjDashTimelineStartDate(){
+    // Graf se záměrně odvíjí výhradně od data odjezdu v Dni 0. Neodvozujeme ho
+    // z historických dat jednotlivých etap: ta mohou být plánovací poznámka,
+    // ne aktuální termín cesty.
+    const declared=(typeof tripStartDate==='function')?tripStartDate():null;
+    return declared instanceof Date && !Number.isNaN(declared.getTime()) ? declared : null;
+  }
   function tjDashTripTimelineHTML(){
     const list=nonPrepLegs(), maxDay=Math.max(0,...list.map(l=>Math.round(Number(l&&l.day)||0)).filter(Boolean));
-    const start=(typeof tripStartDate==='function')?tripStartDate():null;
+    const start=tjDashTimelineStartDate(list);
     if(!start||!maxDay) return '';
     const planByDay={};
     list.forEach(l=>{ const d=Math.round(Number(l&&l.day)||0); if(d>0) planByDay[d]=(Number(planByDay[d])||0)+(parseNum(l&&l.km)||0); });
@@ -2839,6 +2895,10 @@ function cleanupLegImages(leg){ if(!leg) return; const ids=[]; if(leg.route&&leg
 
 // ---------- pomůcky ----------
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// Escaping hodnot pro HTML atributy v hlavním vykreslovacím kontextu.
+// Nesmí se spoléhat na stejnojmennou pomocnou funkci uvnitř modulu Živá cesta,
+// protože ta je uzavřena ve vlastním scope.
+function escAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function nl(s){ return esc(s).replace(/\n/g,'<br>'); }
 function toast(m){ const h=document.getElementById('hint'); h.textContent=m; h.classList.add('show');
   clearTimeout(h._t); h._t=setTimeout(()=>h.classList.remove('show'),1800); }
@@ -2850,14 +2910,57 @@ function fmt(n){ return Math.round(n||0).toLocaleString('cs-CZ'); }
 function fmt1(n){ return (Math.round((n||0)*10)/10).toLocaleString('cs-CZ'); }
 // datum odjezdu ze strany 0 a dopočet dat pro všechny další dny
 function prepLeg(){ return legs.find(l=>l.kind==='prep') || legs[0] || {}; }
-function tripStartText(){ return (prepLeg().trip_start || '').trim(); }
+function tripStartText(){ return String(prepLeg().trip_start || '').trim(); }
+// Datum odjezdu je jediný autoritativní zdroj pro data etap i dashboardový graf.
+// V předchozí verzi šlo do něj uložit libovolný text; jediný překlep pak zneplatnil
+// všechny dopočty. Zde datum validujeme včetně reálné délky měsíce.
+function localDateFromParts(year,month,day,hour,minute){
+  const y=Number(year), mo=Number(month), da=Number(day), h=Number(hour||0), mi=Number(minute||0);
+  if(!Number.isInteger(y)||!Number.isInteger(mo)||!Number.isInteger(da)||!Number.isInteger(h)||!Number.isInteger(mi)) return null;
+  if(mo<1||mo>12||da<1||da>31||h<0||h>23||mi<0||mi>59) return null;
+  const d=new Date(y,mo-1,da,h,mi,0,0);
+  return d.getFullYear()===y && d.getMonth()===mo-1 && d.getDate()===da && d.getHours()===h && d.getMinutes()===mi ? d : null;
+}
 function parseTripStart(s){
-  s=(s||'').trim(); if(!s) return null;
-  let m=s.match(/^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})(?:[ T]+(\d{1,2})[:.](\d{2}))?/);
-  if(m){ const d=new Date(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0)); return isNaN(d)?null:d; }
-  m=s.match(/^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})(?:\s+(\d{1,2})[:.](\d{2}))?/);
-  if(m){ const d=new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0)); return isNaN(d)?null:d; }
+  s=String(s||'').replace(/\u00a0/g,' ').trim(); if(!s) return null;
+  let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T]+(\d{1,2})[:.](\d{2}))?$/);
+  if(m) return localDateFromParts(m[1],m[2],m[3],m[4],m[5]);
+  m=s.match(/^(\d{4})[.\/](\d{1,2})[.\/](\d{1,2})(?:[ T]+(\d{1,2})[:.](\d{2}))?$/);
+  if(m) return localDateFromParts(m[1],m[2],m[3],m[4],m[5]);
+  m=s.match(/^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})(?:[ T]+(\d{1,2})[:.](\d{2}))?$/);
+  if(m) return localDateFromParts(m[3],m[2],m[1],m[4],m[5]);
   return null;
+}
+function two(n){ return String(Number(n)||0).padStart(2,'0'); }
+function tripStartDateInputValue(value){
+  const d=parseTripStart(value); if(!d) return '';
+  return d.getFullYear()+'-'+two(d.getMonth()+1)+'-'+two(d.getDate());
+}
+function tripStartTimeInputValue(value){
+  const raw=String(value||'').replace(/\u00a0/g,' ').trim();
+  const m=raw.match(/(?:T|\s)(\d{1,2})[:.](\d{2})\s*$/);
+  if(!m) return '';
+  const h=Number(m[1]), min=Number(m[2]);
+  return Number.isInteger(h)&&Number.isInteger(min)&&h>=0&&h<24&&min>=0&&min<60 ? two(h)+':'+two(min) : '';
+}
+function normalizeTripStart(value){
+  const raw=String(value||'').trim(); if(!raw) return '';
+  const d=parseTripStart(raw); if(!d) return null;
+  const date=d.getFullYear()+'-'+two(d.getMonth()+1)+'-'+two(d.getDate());
+  const time=tripStartTimeInputValue(raw);
+  return date+(time?' '+time:'');
+}
+function makeTripStart(dateValue,timeValue){
+  const date=String(dateValue||'').trim(), time=String(timeValue||'').trim();
+  if(!date) return '';
+  const raw=date+(time?' '+time:'');
+  return normalizeTripStart(raw);
+}
+function tripStartDisplay(value){
+  const d=parseTripStart(value); if(!d) return '';
+  const date=d.toLocaleDateString('cs-CZ',{day:'numeric',month:'numeric',year:'numeric'});
+  const time=tripStartTimeInputValue(value);
+  return date+(time?' · '+time:'');
 }
 function tripStartDate(){ return parseTripStart(tripStartText()); }
 const WDAYS=['NE','PO','ÚT','ST','ČT','PÁ','SO'];
@@ -3101,21 +3204,35 @@ function prepCardHTML(leg){
   const cnt=checklistItemCount(leg.prep_items||'');
   const cntTxt = cnt ? ` <em>(${cnt})</em>` : '';
   const prepStateClass = prepCardExpanded ? '' : ' is-collapsed';
-  const departureText=(leg.trip_start||'').trim() || 'Doplň datum odjezdu';
+  const rawDeparture=String(leg.trip_start||'').trim();
+  const startValid=!!parseTripStart(rawDeparture);
+  const departureText=tripStartDisplay(rawDeparture) || (rawDeparture ? 'Neplatné datum odjezdu' : 'Doplň datum odjezdu');
+  const dateValue=tripStartDateInputValue(rawDeparture), timeValue=tripStartTimeInputValue(rawDeparture);
+  const dateStatus=startValid
+    ? 'Datum etap i graf se počítají od tohoto údaje.'
+    : (rawDeparture ? 'Uložený údaj není platné datum. Vyber datum z kalendáře znovu.' : 'Bez data odjezdu se data etap ani graf nevypočítají.');
   return `<article class="card prep-card${prepStateClass}" data-leg="${leg.i}">
     <header class="chead prep-card-head" data-prep-toggle="${leg.i}" role="button" tabindex="0" aria-expanded="${prepCardExpanded ? 'true' : 'false'}" title="${prepCardToggleTitle()}">
-      <div class="daybox"><b class="ed" data-leg="${leg.i}" data-field="day" data-ph="0">${esc(leg.day)}</b><span>den</span></div>
+      <div class="daybox prep-daybox-toggle" data-prep-daybox-toggle="${leg.i}" role="button" tabindex="0" aria-expanded="${prepCardExpanded ? 'true' : 'false'}" title="${prepCardToggleTitle()}"><b>${esc(leg.day)}</b><span>den</span></div>
       <div class="htext">
         <div class="route"><span class="to ed" data-leg="${leg.i}" data-field="to_name">${esc(leg.to_name)||'Přípravy na cestu'}</span></div>
-        <div class="metarow"><span class="date" title="Datum jednotlivých etap se odvozuje z údaje níže">Odjezd: ${esc(departureText)}</span></div>
+        <div class="metarow"><span class="date" title="Datum jednotlivých etap se odvozuje pouze z data odjezdu v Dni 0">Odjezd: ${esc(departureText)}</span></div>
       </div>
       <a href="#" class="prep-check-headlink" data-prep-checklist="${leg.i}" data-prep-checklist-instant="1" title="Checklist">📋 <span>Checklist</span>${cntTxt}</a>
     </header>
     <div class="prep prep-grid prep-compact">
       <div class="prepsec prep-main">
         <div class="prep-start">
-          <div class="preplabel">🕘 Datum a čas odjezdu</div>
-          <div class="prepdate ed" data-leg="${leg.i}" data-field="trip_start" data-ph="např. 8. 6. 2026 07:30">${nl(leg.trip_start||'')}</div>
+          <div class="preplabel">🗓️ Datum a čas odjezdu</div>
+          <div class="prepdate prep-date-control" data-trip-start-control="${leg.i}">
+            <label class="prep-date-input">Datum
+              <input type="date" data-trip-start-date="${leg.i}" value="${escAttr(dateValue)}" aria-label="Datum odjezdu" title="Datum odjezdu – otevře systémový kalendář">
+            </label>
+            <label class="prep-time-input">Čas (volitelně)
+              <input type="time" data-trip-start-time="${leg.i}" value="${escAttr(timeValue)}" aria-label="Čas odjezdu">
+            </label>
+          </div>
+          <div class="prep-date-status${startValid?'':' is-warning'}" data-trip-start-status="${leg.i}">${esc(dateStatus)}</div>
         </div>
         <div class="prepsec prep-notes">
           <div class="preplabel">📝 Poznámky</div>
@@ -3255,27 +3372,57 @@ function render(){
 // ---------- editace dlouhým stiskem ----------
 function bindPrepCardToggle(){
   const head=document.querySelector('.prep-card-head[data-prep-toggle]');
-  if(!head || editMode) return;
+  const dayBox=document.querySelector('.prep-daybox-toggle[data-prep-daybox-toggle]');
+  if(!head) return;
   let lastTapAt=0;
-  const isExcluded=(target)=>!!target.closest('[data-prep-checklist],a,button,input,textarea,select,.ed,[contenteditable="true"]');
+  let lastDayBoxTapAt=0;
+  // Modrý čtverec dne 0 je samostatný ovládací prvek. Nesmí současně propadnout
+  // do obsluhy celého záhlaví, jinak by druhé klepnutí mohlo provést dvě změny
+  // stavu za sebou a karta by zůstala ve stejném stavu.
+  const isExcluded=(target)=>!!target.closest('[data-prep-checklist],a,button,input,textarea,select,.ed,[contenteditable="true"],[data-prep-daybox-toggle]');
   const toggle=()=>{
     prepCardExpanded=!prepCardExpanded;
     render();
   };
-  head.addEventListener('click',e=>{
-    if(isExcluded(e.target)) return;
+  // Celé záhlaví reaguje na poklepání jen mimo režim Úpravy, aby nebránilo
+  // editaci názvu a poznámek. Modré políčko Den 0 funguje vždy.
+  if(!editMode){
+    head.addEventListener('click',e=>{
+      if(isExcluded(e.target)) return;
+      const now=Date.now();
+      if(lastTapAt && now-lastTapAt<=460){
+        lastTapAt=0;
+        e.preventDefault();
+        toggle();
+        return;
+      }
+      lastTapAt=now;
+    });
+    head.addEventListener('keydown',e=>{
+      if(e.target.closest('[data-prep-daybox-toggle]')) return;
+      if(e.key==='Enter' || e.key===' '){
+        e.preventDefault();
+        toggle();
+      }
+    });
+  }
+  if(!dayBox) return;
+  dayBox.addEventListener('click',e=>{
     const now=Date.now();
-    if(lastTapAt && now-lastTapAt<=460){
-      lastTapAt=0;
+    if(lastDayBoxTapAt && now-lastDayBoxTapAt<=460){
+      lastDayBoxTapAt=0;
       e.preventDefault();
+      e.stopPropagation();
       toggle();
       return;
     }
-    lastTapAt=now;
+    lastDayBoxTapAt=now;
+    e.stopPropagation();
   });
-  head.addEventListener('keydown',e=>{
+  dayBox.addEventListener('keydown',e=>{
     if(e.key==='Enter' || e.key===' '){
       e.preventDefault();
+      e.stopPropagation();
       toggle();
     }
   });
@@ -3316,8 +3463,36 @@ function bindDmapScrollHints(){
     requestAnimationFrame(update);
   });
 }
+function bindTripStartControl(){
+  const dateInput=document.querySelector('input[data-trip-start-date]');
+  if(!dateInput) return;
+  const leg=legById(+dateInput.dataset.tripStartDate);
+  const timeInput=document.querySelector('input[data-trip-start-time="'+dateInput.dataset.tripStartDate+'"]');
+  if(!leg) return;
+  const stop=e=>e.stopPropagation();
+  [dateInput,timeInput].filter(Boolean).forEach(input=>{
+    input.addEventListener('click',stop);
+    input.addEventListener('pointerdown',stop);
+  });
+  const commit=()=>{
+    const next=makeTripStart(dateInput.value,timeInput&&timeInput.value||'');
+    if(next===null){
+      toast('Datum odjezdu není platné. Vyber jej z kalendáře.');
+      return;
+    }
+    const before=String(leg.trip_start||'').trim();
+    if(before===next) return;
+    leg.trip_start=next;
+    save();
+    render();
+    toast(next ? 'Datum odjezdu uloženo – data etap byla přepočítána.' : 'Datum odjezdu vymazáno.');
+  };
+  dateInput.addEventListener('change',commit);
+  if(timeInput) timeInput.addEventListener('change',commit);
+}
 function bindEditable(){
   bindPrepCardToggle();
+  bindTripStartControl();
   // poznámka: v běžném režimu klik jen rozbalí poznámku
   if(!editMode){
     document.querySelectorAll('.note').forEach(n=>{
@@ -3499,8 +3674,12 @@ function applyEdit(leg,f,val){
     leg.drive=dr; return true;
   }
   if(f==='trip_start'){
-    leg.trip_start=(val||'').trim();
-    if(leg.trip_start && !parseTripStart(leg.trip_start)) toast('Datum odjezdu uloženo, ale nerozumím formátu pro dopočet');
+    // Zpětná kompatibilita pro případ staršího inline editoru nebo importu.
+    // Neplatná hodnota nesmí přepsat poslední platné datum a tím zhasnout
+    // data všech etap i graf dashboardu.
+    const normalized=normalizeTripStart(val);
+    if(normalized===null){ toast('Datum odjezdu nebylo uloženo: zadej platné datum nebo použij kalendář.'); return false; }
+    leg.trip_start=normalized;
     return true;
   }
   leg[f]=val;
