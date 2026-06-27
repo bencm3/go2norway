@@ -2212,15 +2212,31 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     if(view!=='photo'&&tjPreviewUrl){ try{URL.revokeObjectURL(tjPreviewUrl);}catch(_){} tjPreviewUrl=''; }
     ensureJournalModal();
     document.getElementById('tjModalTitle').textContent=title||'Cestovní deník';
-    const modal=document.getElementById('tjModal'), b=modalBody();
+    const modal=document.getElementById('tjModal'), b=modalBody(), head=modal.querySelector('.sheet-head'), titleEl=modal.querySelector('#tjModalTitle');
+    // Form information is moved into the header. Remove the previous moved node
+    // before changing body content; otherwise every newly opened form accumulates another “i”.
+    head?.querySelectorAll('.tj-info').forEach(node=>node.remove());
     modal.classList.toggle('tj-map-fullscreen',view==='map');
     modal.classList.toggle('tj-journal-mode',view==='journal');
     modal.classList.toggle('tj-form-mode',view==='form');
     b.dataset.tjView=view||'';
     b.innerHTML=html||'';
-    if(view==='form'){
-      const info=b.querySelector('.tj-info'), head=modal.querySelector('.sheet-head'), titleEl=modal.querySelector('#tjModalTitle');
-      if(info&&head&&titleEl) head.insertBefore(info,titleEl);
+    if(view==='form'&&head&&titleEl){
+      const infos=[...b.querySelectorAll('.tj-info')];
+      if(infos.length){
+        const primary=infos.shift();
+        const unique=[]; const seen=new Set();
+        [primary,...infos].forEach(info=>{
+          const panel=info.querySelector('div');
+          const content=panel?panel.innerHTML.trim():'';
+          const key=(panel?panel.textContent:content).replace(/\s+/g,' ').trim();
+          if(content&&key&&!seen.has(key)){ seen.add(key); unique.push(content); }
+        });
+        infos.forEach(info=>info.remove());
+        const panel=primary.querySelector('div');
+        if(panel&&unique.length) panel.innerHTML=unique.join('<hr class="tj-info-separator">');
+        head.insertBefore(primary,titleEl);
+      }
     }
     const sheet=modal.querySelector('.sheet'); if(sheet) sheet.scrollTop=0;
     modal.classList.add('show');
@@ -2566,7 +2582,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
 
   function openStartForm(){
     const j=ensureJournal(), old=journalStart(j), formId='tjStartForm';
-    openJournalModal(old?'Upravit začátek cesty':'Zahájit cestu',`<form id="${formId}">${formCommon(formId,old&&old.at,old&&old.gps)}${infoTip('Datum, čas i GPS jsou nahoře a lze je upravit.')}<div class="tj-form-grid"><label class="tj-field">Stav tachometru (km)<input name="odometerKm" required type="number" min="0" step="1" inputmode="numeric" value="${escAttr(old&&old.odometerKm!=null?old.odometerKm:'')}"></label><label class="tj-field">Palivo v nádrži (l)<input name="fuelLevelL" type="number" min="0" step="0.1" inputmode="decimal" value="${escAttr(old&&old.fuelLevelL!=null?old.fuelLevelL:'')}"></label></div><div class="tj-form-actions"><button type="button" data-tj-action="open-journal">Zpět</button><button class="primary" type="submit">${old?'Uložit změny':'Zahájit cestu'}</button></div></form>`,'form');
+    openJournalModal(old?'Upravit začátek cesty':'Zahájit cestu',`<form id="${formId}">${formCommon(formId,old&&old.at,old&&old.gps)}${infoTip('Uložením se nastaví výchozí stav tachometru a paliva pro živou cestu.')}<div class="tj-form-grid"><label class="tj-field">Stav tachometru (km)<input name="odometerKm" required type="number" min="0" step="1" inputmode="numeric" value="${escAttr(old&&old.odometerKm!=null?old.odometerKm:'')}"></label><label class="tj-field">Palivo v nádrži (l)<input name="fuelLevelL" type="number" min="0" step="0.1" inputmode="decimal" value="${escAttr(old&&old.fuelLevelL!=null?old.fuelLevelL:'')}"></label></div><div class="tj-form-actions"><button type="button" data-tj-action="open-journal">Zpět</button><button class="primary" type="submit">${old?'Uložit změny':'Zahájit cestu'}</button></div></form>`,'form');
     const form=document.getElementById(formId); form._tjGps=old&&old.gps||null; bindGps(form);
     form.addEventListener('submit',e=>{ e.preventDefault(); const odo=validateOdo(form.odometerKm.value); if(odo==null)return; const fuel=parseNum(form.fuelLevelL.value); j.start={id:old&&old.id||uid('start'),odometerKm:odo,fuelLevelL:fuel!=null?fuel:null,at:inputToIso(form.at.value),gps:gpsFromForm(form)||null,createdAt:old&&old.createdAt||nowIso(),updatedAt:nowIso()}; persistJournal('začátek cesty'); closeJournalModal(); toast(old?'Začátek cesty upraven.':'Cesta zahájena.'); });
   }
@@ -2636,7 +2652,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const effectiveTarget=Number.isFinite(parsedTarget)&&parsedTarget>0?parsedTarget:(Number.isFinite(oldTarget)&&oldTarget>0?oldTarget:null);
     const leg=effectiveTarget!=null?legForId(effectiveTarget):null, formId='tjNoteForm';
     const targetHtml='';
-    openJournalModal(old?'Upravit poznámku':'Poznámka',`<form id="${formId}">${formCommon(formId,old&&old.at,old&&old.gps)}${targetHtml}${infoTip('Datum, čas i GPS lze upravit nahoře.')}<div class="tj-form-inline"><label class="tj-field">Poznámka<textarea name="note" required placeholder="Co si chceš zapamatovat?"></textarea></label></div><div class="tj-form-actions"><button type="button" data-tj-action="open-journal">Zpět</button><button class="primary" type="submit">Uložit poznámku</button></div></form>`,'form');
+    openJournalModal(old?'Upravit poznámku':'Poznámka',`<form id="${formId}">${formCommon(formId,old&&old.at,old&&old.gps)}${targetHtml}<div class="tj-form-inline"><label class="tj-field">Poznámka<textarea name="note" required placeholder="Co si chceš zapamatovat?"></textarea></label></div><div class="tj-form-actions"><button type="button" data-tj-action="open-journal">Zpět</button><button class="primary" type="submit">Uložit poznámku</button></div></form>`,'form');
     const form=document.getElementById(formId); if(!form)return;
     form.querySelector('[name="note"]').value=old&&old.note||'';
     form._tjGps=old&&old.gps||null; bindGps(form);
@@ -4062,6 +4078,9 @@ function syncUnifiedMediaSquares(){
       const side=Math.max(104,Math.min(218,Math.round((mapSide||fallback)*.28)));
       if(side>0) row.style.setProperty('--g2n-side-square',side+'px');
     });
+    // The side value also controls the visible first tile in vertical map strips.
+    // Re-measure only after the CSS variable has taken effect.
+    if(typeof syncDmapViewportHeights==='function') syncDmapViewportHeights();
   });
 }
 window.addEventListener('resize',syncUnifiedMediaSquares,{passive:true});
@@ -5754,9 +5773,9 @@ html.g2n-card-snap .card{
    * - ruční načtení bez externího vyhledávacího rozhraní;
    * - otevírací doba a vybavení se zobrazují pouze, pokud jsou skutečně zapsány v OSM.
    */
-  const RADIUS_STORAGE='g2n_nearby_radius_km_v3';
+  const RADIUS_STORAGE='g2n_nearby_radius_km_v4';
   const RADIUS_VALUES=Object.freeze([5,10,15,25,50]);
-  const DEFAULT_RADIUS=50;
+  const DEFAULT_RADIUS=5;
   const MAPY_KEYS=Object.freeze({dev:'T9QjBB96JOWvNrfYfoOPmmbof1YiVCT7wa5Vpx_s3r4',web:'AXrGaPuHXGYhvf4KCmR6SaKvRx4DTWRaCfQxpeb88NU'});
   const OVERPASS_ENDPOINTS=Object.freeze([
     'https://overpass-api.de/api/interpreter',
@@ -5800,27 +5819,33 @@ html.g2n-card-snap .card{
   function metersPerPixel(lat,zoom){ return 156543.03392*Math.cos(Number(lat)*Math.PI/180)/Math.pow(2,zoom); }
   function hostRect(){ const r=state.mapHost?.getBoundingClientRect(); return r&&r.width&&r.height?r:null; }
   function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
+  function nearbyControlIcon(kind){
+    if(kind==='gas') return `<svg class="g2n-nb-control-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.25 3.25h8.15v17.5H5.25V3.25Zm2.35 2.25v5.15h3.45V5.5H7.6Zm8.1 1.95h1.25c1.45 0 2.6 1.18 2.6 2.63v7.34c0 1.46-1.15 2.63-2.6 2.63h-1.25v-2.1h1.04c.28 0 .5-.23.5-.52v-5.28c0-.28-.22-.51-.5-.51h-1.04v5.58h-2.1V4.3h2.1v3.15Z" fill="currentColor"/><path d="M7.3 14.05h4.08" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+    return `<svg class="g2n-nb-control-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.35 19.2 12 4.45 21.65 19.2H2.35Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m8.15 19.2 3.85-6.15 3.85 6.15M12 4.45v8.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  }
   function tabShell(){
     document.body.insertAdjacentHTML('beforeend',`
       <div class="g2n-nb-tab" id="g2nNbTab" title="Otevřít OKOLÍ – benzínky a spaní kolem aktuální polohy" role="button" tabindex="0">OKOLÍ</div>
       <section class="g2n-nb-panel" id="g2nNbPanel" aria-label="OKOLÍ – benzínky a spaní kolem aktuální polohy" aria-hidden="true">
-        <header class="g2n-nb-head g2n-nb-head-minimal">
-          <button class="g2n-nb-close" id="g2nNbClose" title="Zavřít OKOLÍ" aria-label="Zavřít OKOLÍ">×</button>
-        </header>
         <div class="g2n-nb-body"><div class="g2n-nb-wrap">
           <section class="g2n-nb-card g2n-nb-controls" aria-label="Nastavení hledání v okolí">
-            <div class="g2n-nb-controls-top">
+            <div class="g2n-nb-control-line g2n-nb-radius-line">
+              <div class="g2n-nb-chip-row">
+                ${RADIUS_VALUES.map(v=>`<button type="button" class="g2n-nb-radius" data-nb-radius="${v}">${v} km</button>`).join('')}
+              </div>
               <div class="g2n-nb-status" id="g2nNbStatus" data-state="idle" aria-live="polite"></div>
-              <details class="g2n-nb-help"><summary title="Informace" aria-label="Informace">i</summary><div class="g2n-nb-help-body"><b>Jak to funguje</b><ul><li>Mapa: Mapy.com</li><li>Body: OpenStreetMap / Overpass</li><li>Spaní: kempy, tábořiště, útulny, horské chaty a přístřešky</li><li>Nehledají se hotely, penziony ani samostatné stellplatzy</li><li>Vybavení a provoz se ukážou jen tehdy, když jsou v OSM vyplněné</li></ul></div></details>
             </div>
-            <div class="g2n-nb-control-line g2n-nb-radius-line"><div class="g2n-nb-chip-row">
-              ${RADIUS_VALUES.map(v=>`<button type="button" class="g2n-nb-radius" data-nb-radius="${v}">${v} km</button>`).join('')}
-            </div></div>
-            <div class="g2n-nb-control-line g2n-nb-filter-line"><div class="g2n-nb-chip-row">
-              <label class="g2n-nb-toggle g2n-nb-toggle-icon" title="Benzínky" aria-label="Benzínky"><input id="g2nNbGas" type="checkbox" checked aria-label="Benzínky"><span aria-hidden="true">⛽</span><span class="g2n-sr-only">Benzínky</span></label>
-              <label class="g2n-nb-toggle g2n-nb-toggle-icon" title="Spaní" aria-label="Spaní"><input id="g2nNbSleep" type="checkbox" checked aria-label="Spaní"><span aria-hidden="true">🛏</span><span class="g2n-sr-only">Spaní</span></label>
-              <button type="button" class="g2n-nb-load" id="g2nNbLoad">Načíst</button>
-            </div></div>
+            <div class="g2n-nb-control-line g2n-nb-filter-line">
+              <div class="g2n-nb-filter-toggles">
+                <label class="g2n-nb-toggle g2n-nb-toggle-icon" title="Benzínky" aria-label="Benzínky"><input id="g2nNbGas" type="checkbox" checked aria-label="Benzínky"><span class="g2n-nb-icon-mark" aria-hidden="true">${nearbyControlIcon('gas')}</span><span class="g2n-sr-only">Benzínky</span></label>
+                <label class="g2n-nb-toggle g2n-nb-toggle-icon" title="Spaní / kemp" aria-label="Spaní / kemp"><input id="g2nNbSleep" type="checkbox" checked aria-label="Spaní / kemp"><span class="g2n-nb-icon-mark" aria-hidden="true">${nearbyControlIcon('tent')}</span><span class="g2n-sr-only">Spaní / kemp</span></label>
+              </div>
+              <div class="g2n-nb-actions">
+                <button type="button" class="g2n-nb-load" id="g2nNbLoad">Načíst</button>
+                <details class="g2n-nb-help"><summary title="Informace" aria-label="Informace">i</summary><div class="g2n-nb-help-body"><b>Jak to funguje</b><ul><li>Mapa: Mapy.com</li><li>Body: OpenStreetMap / Overpass</li><li>Spaní: kempy, tábořiště, útulny, horské chaty a přístřešky</li><li>Nehledají se hotely, penziony ani samostatné stellplatzy</li><li>Vybavení a provoz se ukážou jen tehdy, když jsou v OSM vyplněné</li></ul></div></details>
+                <button class="g2n-nb-close" id="g2nNbClose" title="Zavřít OKOLÍ" aria-label="Zavřít OKOLÍ">×</button>
+              </div>
+            </div>
           </section>
           <section class="g2n-nb-card g2n-nb-map-card" aria-label="Mapa okolí">
             <div class="g2n-nb-map" id="g2nNbMap">
@@ -6215,6 +6240,119 @@ html.g2n-card-snap .card{
   const app=document.getElementById('app'); if(app)new MutationObserver(schedule).observe(app,{childList:true,subtree:true});
   window.g2nUpdateMediaHints=schedule;
   schedule();
+})();
+</script>
+
+
+<style id="g2n-v89-layout-and-form-repair-style">
+/* v89: geometry repair after Fold testing. No itinerary data, media sources or APIs are changed. */
+
+/* Day date: 80 % of the v88 size. */
+.card .metarow>.date{font-size:21px!important}
+
+/* Media rail: photo and first right-side map use the same outer square on every viewport.
+   The map stays beside the photo strip on phones, preventing the former vertical jump. */
+.upper.hasmap .media-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) calc(var(--g2n-side-square,var(--g2n-media-tile)) + 24px)!important;
+  align-items:start!important;
+  min-width:0!important;
+}
+.upper.hasmap .rightmap{
+  box-sizing:border-box!important;
+  width:calc(var(--g2n-side-square,var(--g2n-media-tile)) + 24px)!important;
+  margin:0!important;
+  padding:10px 12px!important;
+  border-left:0!important;
+  border-top:0!important;
+  align-self:start!important;
+}
+.upper.hasmap .rightmap:not(.has-more) .rightmap-scroll{
+  flex:0 0 var(--g2n-side-square,var(--g2n-media-tile))!important;
+  width:var(--g2n-side-square,var(--g2n-media-tile))!important;
+  height:var(--g2n-side-square,var(--g2n-media-tile))!important;
+  min-height:0!important;
+}
+.upper.hasmap .rightmap:not(.has-more) .dmap{
+  flex:0 0 var(--g2n-side-square,var(--g2n-media-tile))!important;
+  width:var(--g2n-side-square,var(--g2n-media-tile))!important;
+  height:var(--g2n-side-square,var(--g2n-media-tile))!important;
+  min-height:0!important;
+  box-sizing:border-box!important;
+}
+.upper.hasmap .rightmap.has-more .rightmap-scroll{width:var(--g2n-side-square,var(--g2n-media-tile))!important}
+.upper.hasmap .rightmap.has-more .dmap{min-height:0!important;box-sizing:border-box!important}
+.upper.hasmap .gallery .gtile,
+.upper.hasmap .gallery.g1 .gtile,
+.upper.hasmap .gallery .gtile.slot{
+  flex-basis:var(--g2n-side-square,var(--g2n-media-tile))!important;
+  width:var(--g2n-side-square,var(--g2n-media-tile))!important;
+  height:var(--g2n-side-square,var(--g2n-media-tile))!important;
+}
+
+/* Nearby: two compact factual rows, no empty header; current status belongs beside the radius choices. */
+.g2n-nb-head-minimal{display:none!important}
+.g2n-nb-controls{display:grid!important;gap:7px!important;margin:0 0 10px!important}
+.g2n-nb-controls-top{display:none!important}
+.g2n-nb-control-line{display:flex!important;align-items:center!important;min-width:0!important;gap:7px!important}
+.g2n-nb-radius-line{flex-wrap:nowrap!important}
+.g2n-nb-radius-line .g2n-nb-chip-row{display:flex!important;flex:0 0 auto!important;flex-wrap:nowrap!important;gap:4px!important;min-width:0!important}
+.g2n-nb-radius{min-width:42px!important;padding:8px 7px!important;font-size:12px!important}
+.g2n-nb-status{display:block!important;flex:1 1 auto!important;min-width:0!important;margin:0 0 0 2px!important;padding:0 0 0 8px!important;border:0!important;border-left:2px solid rgba(178,203,229,.55)!important;border-radius:0!important;background:transparent!important;color:#bfd0e2!important;font-size:12px!important;line-height:1.22!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.g2n-nb-status:empty{display:none!important}
+.g2n-nb-status[data-state="loading"],.g2n-nb-status[data-state="ok"],.g2n-nb-status[data-state="error"]{padding:0 0 0 8px!important;border-left:2px solid currentColor!important;background:transparent!important}
+.g2n-nb-filter-line{gap:7px!important;min-height:40px!important}
+.g2n-nb-filter-toggles{display:flex!important;align-items:center!important;gap:7px!important;flex:0 0 auto!important}
+.g2n-nb-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:6px!important;margin-left:auto!important;min-width:0!important}
+.g2n-nb-toggle-icon{width:42px!important;min-width:42px!important;height:40px!important;padding:0 6px!important;justify-content:center!important;gap:4px!important}
+.g2n-nb-toggle-icon input{width:14px!important;height:14px!important;flex:0 0 auto!important}
+.g2n-nb-icon-mark{display:grid!important;place-items:center!important;width:22px!important;height:22px!important;line-height:1!important}
+.g2n-nb-control-svg{display:block!important;width:22px!important;height:22px!important;color:#f3fbff!important}
+.g2n-nb-load{flex:0 0 88px!important;width:88px!important;min-width:88px!important;height:40px!important;min-height:40px!important;margin:0!important;padding:8px 10px!important;border-radius:999px!important;font-size:14px!important;font-weight:900!important}
+.g2n-nb-help{flex:0 0 auto!important;margin:0!important}
+.g2n-nb-help>summary{width:34px!important;height:34px!important;font-size:17px!important}
+.g2n-nb-close{flex:0 0 40px!important;width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;margin:0!important;padding:0!important;border:1px solid rgba(10,16,24,.28)!important;border-radius:10px!important;background:#fff!important;color:#000!important;font:900 32px/.78 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;display:grid!important;place-items:center!important;box-sizing:border-box!important}
+.g2n-nb-close:active{background:#eef2f6!important;filter:none!important}
+@media(max-width:360px){
+  .g2n-nb-radius{min-width:40px!important;padding:8px 5px!important;font-size:11px!important}
+  .g2n-nb-status{font-size:11px!important;padding-left:6px!important}
+  .g2n-nb-load{flex-basis:80px!important;width:80px!important;min-width:80px!important}
+  .g2n-nb-filter-line{gap:5px!important}.g2n-nb-filter-toggles,.g2n-nb-actions{gap:5px!important}
+}
+
+/* One information control per form; it is cleaned before each new form and closes on an outside tap. */
+#tjModal.tj-form-mode .tj-target-form-title{font-size:20px!important;line-height:1.15!important;margin:2px 0 8px!important;color:#c8e2ff!important}
+.tj-info-separator{border:0!important;border-top:1px solid rgba(165,193,224,.28)!important;margin:9px 0!important}
+
+/* Every top-right X uses the same white tile, black 200 % glyph and existing compact hit area. */
+.sheet-close,.g2n-hi-close,.tj-map-close{
+  display:grid!important;place-items:center!important;
+  width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;
+  margin:0!important;padding:0!important;box-sizing:border-box!important;
+  border:1px solid rgba(10,16,24,.28)!important;border-radius:10px!important;
+  background:#fff!important;color:#000!important;
+  font:900 32px/.78 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+  text-decoration:none!important;
+}
+.sheet-close:active,.g2n-hi-close:active,.tj-map-close:active{background:#eef2f6!important;filter:none!important;transform:none!important}
+.tj-map-close span{display:none!important}
+.tiletools button[data-act="delphoto"],.tiletools button[data-act="delroute"]{display:grid!important;place-items:center!important;width:26px!important;height:26px!important;min-width:26px!important;min-height:26px!important;padding:0!important;background:#fff!important;color:#000!important;font:900 26px/.8 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important}
+
+/* Restore proximity highlighting after the v88 translucent baseline override: yellow fill and numeral stay legible. */
+.railbtn.near,.railbtn.near.active{background:#ffd65a!important;border-color:#ffe89a!important;color:#151b08!important;text-shadow:none!important;opacity:1!important;box-shadow:0 0 0 1px rgba(255,255,255,.24) inset,0 0 13px rgba(255,214,90,.45)!important}
+.railbtn.near.active{background:#ffe176!important;border-color:#fff4ba!important;color:#111!important}
+</style>
+
+
+<script id="g2n-v89-form-info-dismiss-script">
+(function(){
+  'use strict';
+  // The information bubble is deliberately transient: tapping anywhere outside it closes it.
+  document.addEventListener('pointerdown',function(event){
+    document.querySelectorAll('details.tj-info[open],details.g2n-nb-help[open]').forEach(function(details){
+      if(!details.contains(event.target)) details.open=false;
+    });
+  },true);
 })();
 </script>
 
