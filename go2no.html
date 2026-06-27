@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
-<!-- go2no v87z: finální dotykové úpravy — žluté číslo cíle a větší piktogramy akcí v jedné řadě. OKOLÍ dál používá Mapy.com + OpenStreetMap/Overpass, bez Google Maps/Places. -->
+<!-- go2no v88: Fold-safe podklad OKOLÍ (Mapy.com Static Maps max. 1024 px + scale=2), kompaktní mobilní ovládání. OKOLÍ dál používá Mapy.com + OpenStreetMap/Overpass, bez Google Maps/Places. -->
 <!-- go2no v87q: etapy 1–46 používají Mapy.com API; pouze etapa 40 vykresluje uloženou GPX stopu kvůli záměrným fotopointům mimo přímou trasu. -->
 <!-- go2no v87p: fáze 2 je aktivní pro všechny silniční etapy 1–46; Mapy.com statická mapa trasu vždy počítá mezi správnými břehy trajektů. Odkazy na původní plánování zůstávají beze změny. -->
 <!-- go2no v87k: test fáze 2. Etapy 1–4 používají severně orientované čtvercové online mapy Mapy.com pouze po získání skutečné geometrie; při selhání zůstává screenshot a popisek uvádí důvod. -->
@@ -1170,8 +1170,8 @@ body.editing .card > .chead > .headboxes > .targetbox > b.ed.editing{box-shadow:
     <button class="sheet-close" id="closeSetTop" title="Zavřít">×</button>
   </div>
   <div class="sheet-body">
-    <details class="setting-details" open="">
-      <summary>Cesta a výpočty</summary>
+    <details class="setting-details g2n-route-settings" open="">
+      <summary class="g2n-sr-only" aria-hidden="true"></summary>
       <div class="setting-panel">
         <div class="setting-grid setting-grid-compact">
           <div class="setting-inline-pair">
@@ -1189,25 +1189,22 @@ body.editing .card > .chead > .headboxes > .targetbox > b.ed.editing{box-shadow:
         <p>Po přihlášení se změny ukládají online automaticky několik sekund po úpravě. Záložně se kontroluje neuložená změna každých 10 minut.</p>
         <div class="syncbox">
           <h4>Stav online</h4>
-          <div class="syncrow">
+          <div class="syncrow g2n-auth-row">
             <input id="syncEmail" type="email" autocomplete="email" placeholder="bencm3@gmail.com" value="bencm3@gmail.com">
-            <input id="syncPassword" type="password" autocomplete="current-password" placeholder="heslo pro go2no">
+            <div class="g2n-password-field"><input id="syncPassword" type="password" autocomplete="current-password" placeholder="heslo pro go2no"><button id="syncPasswordLogin" type="button" title="Přihlásit heslem" aria-label="Přihlásit heslem">➜</button></div>
           </div>
           <div class="syncrow">
-            <button id="syncPasswordLogin">Přihlásit heslem</button>
-            <button id="syncLogout">Odhlásit</button>
+            <button class="primary" id="syncUpload">Export stavu on-line</button>
+            <button id="syncDownload">Import stavu on-line</button>
           </div>
-          <div class="syncrow">
-            <button class="primary" id="syncUpload">Nahrát stav online</button>
-            <button id="syncDownload">Stáhnout online stav</button>
-          </div>
-          <button id="syncLogin" title="Záložně odešle přihlašovací odkaz e-mailem">Záložně: poslat odkaz e‑mailem</button>
+          <button class="primary sync-html-export" id="doExport">⬇︎ Export HTML…</button>
+          <button id="syncLogin" title="Odešle přihlašovací odkaz e-mailem">Poslat odkaz e-mailem</button>
           <div class="syncstatus" id="syncStatus">Online režim zatím není přihlášený.</div>
         </div>
       </div>
     </details>
 
-    <details class="setting-details setting-danger">
+    <details class="setting-details g2n-trip-reset" open>
       <summary>Nová cesta s výmazem deníku</summary>
       <div class="setting-panel">
         <p>Vymaže jen živý deník, výchozí stav tachometru a označení navštívených či vynechaných cílů. Připravený itinerář zůstane zachován.</p>
@@ -1222,23 +1219,12 @@ body.editing .card > .chead > .headboxes > .targetbox > b.ed.editing{box-shadow:
         <button id="doFullFactoryReset">⚠︎ Vrátit aplikaci do továrního nastavení</button>
       </div>
     </details>
-
-    <details class="setting-details">
-      <summary>Záloha a export</summary>
-      <div class="setting-panel">
-        <p>Export uloží samostatný HTML soubor se vším jako lokální pojistku mimo GitHub i Supabase.</p>
-        <button class="primary" id="doExport">⬇︎ Export – uložit HTML soubor</button>
-      </div>
-    </details>
-
-    <button id="closeSet">Zavřít</button>
   </div>
 </div></div>
 
 <div class="modal" id="popup"><div class="sheet">
-  <h3 id="popupTitle"></h3>
-  <div id="popupBody"></div>
-  <button id="popupClose">Zavřít</button>
+  <div class="sheet-head"><h3 id="popupTitle"></h3><button class="sheet-close" id="popupClose" title="Zavřít" aria-label="Zavřít">×</button></div>
+  <div class="sheet-body" id="popupBody"></div>
 </div></div>
 
 <div class="modal checklist-modal" id="prepChecklistModal"><div class="sheet">
@@ -1589,9 +1575,10 @@ const EMBED_CFG={"cons":6.1,"refuel":20,"refuelMode":"manual","geoRadiusKm":100,
     if(card){ card.scrollIntoView({behavior:'smooth',block:'center'}); card.classList.add('g2n-hi-flash'); setTimeout(()=>card.classList.remove('g2n-hi-flash'),1400); }
   }
 
+  function auditCountLabel(total){ return total===1?'1 nález':(total>=2&&total<=4?total+' nálezy':total+' nálezů'); }
   function dashAuditHTML(){
-    const h=hardCount(), s=softCount(), total=h+s;
-    return `<div class="audit-dashbox"><b>Kontrola itineráře: ${total ? total+' nálezů' : 'bez nálezů'}</b><span>${h?`${h} tvrdých chyb · `:''}${s?`${s} položek ke kontrole`:'Data vypadají konzistentně podle lokálních pravidel.'}</span><br><button id="auditDashOpen">Otevřít kontrolu</button></div>`;
+    const total=hardCount()+softCount();
+    return `<div class="audit-dashbox"><button id="auditDashOpen" title="Otevřít kontrolu itineráře">Otevřít kontrolu</button><span class="audit-dash-count">${total?auditCountLabel(total):'bez nálezů'}</span></div>`;
   }
 
   function applyDashAudit(){
@@ -2125,7 +2112,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const dayTitle=calendar?`${calendar.total} dní celkem: ${calendar.work} pracovních, ${calendar.weekend} víkendových a ${calendar.weekdayHoliday} svátečních dnů ve všední den.`:'Doplň datum odjezdu na kartě Přípravy.';
     const latest=lastEvent?entrySummary(lastEvent,true):'Zatím žádný zápis';
     const nextText=x.next?cleanName(x.next.to_name):'Všechny cíle jsou odbavené';
-    const title=hasStart?`${x.routeFrom} → ${x.routeTo}`:'Živá cesta nebyla zahájena';
+    const title=hasStart?`${x.routeFrom} → ${x.routeTo}`:'';
     const helper=hasStart?`Další: ${nextText}`:'';
     const startButton=`<button class="tj-dash-start-btn" data-tj-action="start" title="${hasStart?'Zobrazit nebo upravit začátek cesty':'Zahájit živou cestu'}">${hasStart?'Začátek cesty':'Zahájit cestu'}</button>`;
     const journalButton=`<button class="tj-dash-journal-btn" data-tj-action="open-journal" title="Otevřít cestovní deník a grafy">Deník</button>`;
@@ -2228,15 +2215,20 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const modal=document.getElementById('tjModal'), b=modalBody();
     modal.classList.toggle('tj-map-fullscreen',view==='map');
     modal.classList.toggle('tj-journal-mode',view==='journal');
+    modal.classList.toggle('tj-form-mode',view==='form');
     b.dataset.tjView=view||'';
     b.innerHTML=html||'';
+    if(view==='form'){
+      const info=b.querySelector('.tj-info'), head=modal.querySelector('.sheet-head'), titleEl=modal.querySelector('#tjModalTitle');
+      if(info&&head&&titleEl) head.insertBefore(info,titleEl);
+    }
     const sheet=modal.querySelector('.sheet'); if(sheet) sheet.scrollTop=0;
     modal.classList.add('show');
   }
 
   function closeJournalModal(){
     const modal=document.getElementById('tjModal');
-    if(modal){ modal.classList.remove('show','tj-map-fullscreen','tj-journal-mode'); }
+    if(modal){ modal.classList.remove('show','tj-map-fullscreen','tj-journal-mode','tj-form-mode'); }
     if(tjPreviewUrl){ try{URL.revokeObjectURL(tjPreviewUrl);}catch(_){} tjPreviewUrl=''; }
   }
   function installFab(){
@@ -2255,8 +2247,8 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
 
   function injectSettings(){
     const body=document.querySelector('#settings .sheet-body'); if(!body||document.getElementById('tjSettingsBlock')) return;
-    const block=document.createElement('details'); block.id='tjSettingsBlock'; block.className='setting-details'; block.open=true;
-    block.innerHTML=`<summary>Živá cesta a cestovní deník</summary><div class="setting-panel">
+    const block=document.createElement('details'); block.id='tjSettingsBlock'; block.className='setting-details g2n-live-settings'; block.open=true;
+    block.innerHTML=`<summary class="g2n-sr-only" aria-hidden="true"></summary><div class="setting-panel">
       <p id="tjSettingsState">Cestovní deník zatím není zahájen.</p>
       <div class="syncrow"><button class="primary" data-tj-action="open-journal">Cestovní deník</button><button data-tj-action="open-report">Přehled a export</button></div>
       <div class="syncrow"><button data-tj-action="download-rates">Stáhnout kurzy</button><button data-tj-action="open-rates">Kurzy ručně</button></div>
@@ -2621,7 +2613,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   }
   function openPauseForm(entry){
     const old=entry||null, formId='tjPauseForm';
-    openJournalModal(old?'Upravit fotopoint / pauzu':'Fotopoint / pauza',`<form id="${formId}">${formCommon(formId,old&&old.at,old&&old.gps)}${infoTip('GPS určí bod na mapě. Plná fotografie zůstává v tomto telefonu; do rodinného náhledu jde jen malý náhled.')}<div class="tj-form-inline"><label class="tj-field">Typ zastávky<select name="pauseType">${Object.entries(TJ_PAUSE).map(([k,v])=>`<option value="${k}"${(old&&old.pauseType||'photo')===k?' selected':''}>${v}</option>`).join('')}</select></label></div><div class="tj-form-inline"><label class="tj-field">Poznámka<textarea name="note">${esc(old&&old.note||'')}</textarea></label></div><div class="tj-photo-choice-row"><label class="tj-photo-choice"><input name="photoCamera" type="file" accept="image/*" capture="environment"><span>📷 Vyfotit</span></label><label class="tj-photo-choice"><input name="photoGallery" type="file" accept="image/*"><span>▣ Vybrat z telefonu</span></label></div>${photoPreviewHTML(old)}${old&&old.photoThumb?`<label class="tj-check"><input name="removePhoto" type="checkbox">Odstranit fotku z tohoto záznamu</label>`:''}<div class="tj-form-actions"><button type="button" data-tj-action="open-journal">Zpět</button><button class="primary" type="submit">Uložit zastávku</button></div></form>`,'form');
+    openJournalModal(old?'Upravit fotopoint / pauzu':'Fotopoint / pauza',`<form id="${formId}">${formCommon(formId,old&&old.at,old&&old.gps)}${infoTip('GPS určí bod na mapě. Plná fotografie zůstává v tomto telefonu; do rodinného náhledu jde jen malý náhled.')}<div class="tj-form-inline"><label class="tj-field">Typ zastávky<select name="pauseType">${Object.entries(TJ_PAUSE).map(([k,v])=>`<option value="${k}"${(old&&old.pauseType||'photo')===k?' selected':''}>${v}</option>`).join('')}</select></label></div><div class="tj-form-inline"><label class="tj-field">Poznámka<textarea name="note">${esc(old&&old.note||'')}</textarea></label></div><div class="tj-photo-choice-row"><label class="tj-photo-choice"><input name="photoCamera" type="file" accept="image/*" capture="environment"><span>📷 Vyfotit</span></label><label class="tj-photo-choice"><input name="photoGallery" type="file" accept="image/*"><span>▣ Vyber z fotogalerie</span></label></div>${photoPreviewHTML(old)}${old&&old.photoThumb?`<label class="tj-check"><input name="removePhoto" type="checkbox">Odstranit fotku z tohoto záznamu</label>`:''}<div class="tj-form-actions"><button type="button" data-tj-action="open-journal">Zpět</button><button class="primary" type="submit">Uložit zastávku</button></div></form>`,'form');
     const form=document.getElementById(formId); form._tjGps=old&&old.gps||null; bindGps(form);
     form.addEventListener('submit',async ev=>{
       ev.preventDefault(); const submit=form.querySelector('[type="submit"]'); if(submit){submit.disabled=true; submit.textContent='Ukládám…';}
@@ -2643,7 +2635,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const parsedTarget=Number(targetId), oldTarget=Number(old&&old.targetId);
     const effectiveTarget=Number.isFinite(parsedTarget)&&parsedTarget>0?parsedTarget:(Number.isFinite(oldTarget)&&oldTarget>0?oldTarget:null);
     const leg=effectiveTarget!=null?legForId(effectiveTarget):null, formId='tjNoteForm';
-    const targetHtml=leg?`<div class="tj-target-form-title">Cíl ${esc(String(leg.num||'—'))} · ${esc(cleanName(leg.to_name))}</div>`:'';
+    const targetHtml='';
     openJournalModal(old?'Upravit poznámku':'Poznámka',`<form id="${formId}">${formCommon(formId,old&&old.at,old&&old.gps)}${targetHtml}${infoTip('Datum, čas i GPS lze upravit nahoře.')}<div class="tj-form-inline"><label class="tj-field">Poznámka<textarea name="note" required placeholder="Co si chceš zapamatovat?"></textarea></label></div><div class="tj-form-actions"><button type="button" data-tj-action="open-journal">Zpět</button><button class="primary" type="submit">Uložit poznámku</button></div></form>`,'form');
     const form=document.getElementById(formId); if(!form)return;
     form.querySelector('[name="note"]').value=old&&old.note||'';
@@ -3932,7 +3924,7 @@ function cardHTML(leg){
   if(editMode) rm += `<figure class="dmap slot" data-act="adddmap" data-leg="${leg.i}"><span>＋ dílčí mapa</span></figure>`;
   const dmapCount = dmaps.length + (editMode ? 1 : 0);
   const dmapScroller = dmapCount > 1;
-  const rightmap = rm ? `<div class="rightmap${dmapScroller ? ' has-more' : ''}"><div class="rightmap-scroll">${rm}</div>${dmapScroller ? `<button type="button" class="dmap-scrollhint" data-act="scroll-dmap" title="Další dílčí mapa" aria-label="Posunout na další dílčí mapu">⌄</button>` : ''}</div>` : '';
+  const rightmap = rm ? `<div class="rightmap${dmapScroller ? ' has-more' : ''}"><div class="rightmap-scroll">${rm}</div>${dmapScroller ? `<span class="dmap-scrollhint" aria-hidden="true">⌄</span>` : ''}</div>` : '';
   const facts = ((leg.km||ph||editMode)?`<div class="fact"><b class="ed" data-leg="${leg.i}" data-field="km" data-ph="—">${esc(leg.km)}</b><span>km</span></div>`:'')
               + ((leg.drive||ph||editMode)?`<div class="fact"><b class="ed" data-leg="${leg.i}" data-field="drive" data-ph="—">${esc(leg.drive)}</b><span>jízda</span></div>`:'');
   const noteText=`<span class="note-text ed" data-leg="${leg.i}" data-field="note" data-ph="Poznámka…">${nl(leg.note)}</span>`;
@@ -3993,7 +3985,7 @@ function cardHTML(leg){
   if(editMode) unifiedRm += `<figure class="dmap slot" data-act="adddmap" data-leg="${leg.i}"><span>＋ dílčí mapa</span></figure>`;
   const unifiedDmapCount = (dmaps.length || contextMap ? 1 : 0) + (editMode ? 1 : 0);
   const unifiedScroller = unifiedDmapCount > 1;
-  const unifiedRightmap = unifiedRm ? `<div class="rightmap${unifiedScroller ? ' has-more' : ''}"><div class="rightmap-scroll">${unifiedRm}</div>${unifiedScroller ? `<button type="button" class="dmap-scrollhint" data-act="scroll-dmap" title="Další dílčí mapa" aria-label="Posunout na další dílčí mapu">⌄</button>` : ''}</div>` : '';
+  const unifiedRightmap = unifiedRm ? `<div class="rightmap${unifiedScroller ? ' has-more' : ''}"><div class="rightmap-scroll">${unifiedRm}</div>${unifiedScroller ? `<span class="dmap-scrollhint" aria-hidden="true">⌄</span>` : ''}</div>` : '';
   const mediaRow = unifiedRightmap
     ? `<div class="media-row"><div class="media-gallery">${unifiedGallery}</div>${unifiedRightmap}</div>`
     : `<div class="media-row"><div class="media-gallery">${unifiedGallery}</div></div>`;
@@ -4050,24 +4042,24 @@ function openGpsChooser(txt){
   const mapy='https://mapy.com/cs/zakladni?source=coor&id='+encodeURIComponent(lon+','+lat)+'&x='+encodeURIComponent(lon)+'&y='+encodeURIComponent(lat)+'&z=16';
   popup('Otevřít GPS: '+lat+', '+lon, [
     {label:'🗺 Google Maps', primary:true, act:()=>openExternalMap(google)},
-    {label:'🧭 Mapy.com', primary:true, act:()=>openExternalMap(mapy)},
-    {label:'Zrušit', act:()=>{}}
+    {label:'🧭 Mapy.com', primary:true, act:()=>openExternalMap(mapy)}
   ]);
 }
 
 
-// v87h: na desktopu mají foto-dlaždice přesně stejnou stranu jako obsah
-// pravého sloupce dílčích map. Nastavení je čistě vizuální; nemění data,
-// obrázky, odkazy ani vertikální rolování map.
+// v88: fotografie i dílčí mapy mají stranu přibližně 28 % hlavní mapy.
+// Mění se jen geometrie rámečků, nikoli data, obrázky ani odkazy.
 let g2nMediaSquareRaf=0;
 function syncUnifiedMediaSquares(){
   if(g2nMediaSquareRaf) cancelAnimationFrame(g2nMediaSquareRaf);
   g2nMediaSquareRaf=requestAnimationFrame(()=>{
     g2nMediaSquareRaf=0;
     document.querySelectorAll('.upper.hasmap .media-row').forEach(row=>{
-      const scroller=row.querySelector('.rightmap-scroll');
-      if(!scroller) return;
-      const side=Math.round(scroller.getBoundingClientRect().width);
+      const card=row.closest('.card');
+      const routeMap=card&&card.querySelector('.maps .map');
+      const mapSide=Math.round(routeMap&&routeMap.getBoundingClientRect().width||0);
+      const fallback=Math.round(row.getBoundingClientRect().width||0);
+      const side=Math.max(104,Math.min(218,Math.round((mapSide||fallback)*.28)));
       if(side>0) row.style.setProperty('--g2n-side-square',side+'px');
     });
   });
@@ -4175,11 +4167,9 @@ function bindDmapScrollHints(){
     const hint=panel.querySelector('.dmap-scrollhint');
     if(!scroller || !hint) return;
     const update=()=>{
-      const atEnd=scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4;
-      hint.classList.toggle('is-up',atEnd);
-      hint.textContent=atEnd ? '⌃' : '⌄';
-      hint.title=atEnd ? 'Zpět na první dílčí mapu' : 'Další dílčí mapa';
-      hint.setAttribute('aria-label',atEnd ? 'Zpět na první dílčí mapu' : 'Posunout na další dílčí mapu');
+      const hasMoreBelow=scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 4;
+      panel.classList.toggle('g2n-has-more-down',hasMoreBelow);
+      hint.textContent='⌄';
     };
     scroller.addEventListener('scroll',update,{passive:true});
     requestAnimationFrame(update);
@@ -4473,9 +4463,8 @@ function popup(title, items){
   const m=document.getElementById('popup');
   document.getElementById('popupTitle').textContent=title;
   const body=document.getElementById('popupBody'); body.innerHTML='';
-  const hasOwnCancel=(items||[]).some(it=>/^\s*(zrušit|storno|cancel)\b/i.test(String(it&&it.label||'')));
   const close=document.getElementById('popupClose');
-  close.hidden=hasOwnCancel;
+  close.hidden=false;
   items.forEach(it=>{ const btn=document.createElement('button'); btn.textContent=it.label;
     if(it.danger){ btn.style.color='#ff8a8a'; } if(it.primary){ btn.className='primary'; }
     btn.onclick=()=>{ m.classList.remove('show'); it.act(); };
@@ -4789,8 +4778,8 @@ function openSettings(){
 }
 document.getElementById('btnSettings').onclick=openSettings;
 function closeSettings(){ document.getElementById('settings').classList.remove('show'); }
-document.getElementById('closeSet').onclick=closeSettings;
-document.getElementById('closeSetTop').onclick=closeSettings;
+document.getElementById('closeSet')?.addEventListener('click',closeSettings);
+document.getElementById('closeSetTop')?.addEventListener('click',closeSettings);
 document.getElementById('settings').addEventListener('click',e=>{ if(e.target.id==='settings') closeSettings(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSettings(); });
 [['cfgCons','cons'],['cfgRefuel','refuel']].forEach(([id,key])=>{
@@ -5478,10 +5467,17 @@ if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js')
   save=function(){ const r=origSave.apply(this,arguments); markStableChange(); return r; };
   const origSaveCfg=saveCfg;
   saveCfg=function(){ const r=origSaveCfg.apply(this,arguments); markStableChange(); return r; };
-  const origPersist=persistJournal;
-  persistJournal=function(){ const r=origPersist.apply(this,arguments); markStableChange(); return r; };
-  const origWriteCfgQuiet=writeCfgQuiet;
-  writeCfgQuiet=function(){ const r=origWriteCfgQuiet.apply(this,arguments); return r; };
+  // Živý deník je uzavřený ve vlastním modulu; v této vrstvě jej obalujeme jen tehdy,
+  // pokud je jeho perzistence opravdu zveřejněna. Bez ochrany by ReferenceError zastavil
+  // následnou inicializaci aplikace.
+  if(typeof persistJournal==='function'){
+    const origPersist=persistJournal;
+    persistJournal=function(){ const r=origPersist.apply(this,arguments); markStableChange(); return r; };
+  }
+  if(typeof writeCfgQuiet==='function'){
+    const origWriteCfgQuiet=writeCfgQuiet;
+    writeCfgQuiet=function(){ const r=origWriteCfgQuiet.apply(this,arguments); return r; };
+  }
   hist.baseline=takeSnapshot();
   updateButtons();
 })();
@@ -5752,10 +5748,10 @@ html.g2n-card-snap .card{
 (function(){
   'use strict';
   /*
-   * OKOLÍ v87v:
-   * - podkladová mapa: stávající Mapy.com REST API / Static Maps (bez Google);
+   * OKOLÍ v88:
+   * - podkladová mapa: stávající Mapy.com REST API / Static Maps;
    * - body: otevřená data OpenStreetMap přes veřejné Overpass API;
-   * - ruční načtení, žádný klíč, žádné účtované Google Places dotazy;
+   * - ruční načtení bez externího vyhledávacího rozhraní;
    * - otevírací doba a vybavení se zobrazují pouze, pokud jsou skutečně zapsány v OSM.
    */
   const RADIUS_STORAGE='g2n_nearby_radius_km_v3';
@@ -5808,22 +5804,21 @@ html.g2n-card-snap .card{
     document.body.insertAdjacentHTML('beforeend',`
       <div class="g2n-nb-tab" id="g2nNbTab" title="Otevřít OKOLÍ – benzínky a spaní kolem aktuální polohy" role="button" tabindex="0">OKOLÍ</div>
       <section class="g2n-nb-panel" id="g2nNbPanel" aria-label="OKOLÍ – benzínky a spaní kolem aktuální polohy" aria-hidden="true">
-        <header class="g2n-nb-head">
-          <div class="g2n-nb-title"><h2>OKOLÍ</h2><span>benzínky a spaní kolem tebe</span></div>
+        <header class="g2n-nb-head g2n-nb-head-minimal">
           <button class="g2n-nb-close" id="g2nNbClose" title="Zavřít OKOLÍ" aria-label="Zavřít OKOLÍ">×</button>
         </header>
         <div class="g2n-nb-body"><div class="g2n-nb-wrap">
           <section class="g2n-nb-card g2n-nb-controls" aria-label="Nastavení hledání v okolí">
             <div class="g2n-nb-controls-top">
-              <div class="g2n-nb-status" id="g2nNbStatus" data-state="idle">Zvol perimetr · <strong>Načíst</strong>.</div>
+              <div class="g2n-nb-status" id="g2nNbStatus" data-state="idle" aria-live="polite"></div>
               <details class="g2n-nb-help"><summary title="Informace" aria-label="Informace">i</summary><div class="g2n-nb-help-body"><b>Jak to funguje</b><ul><li>Mapa: Mapy.com</li><li>Body: OpenStreetMap / Overpass</li><li>Spaní: kempy, tábořiště, útulny, horské chaty a přístřešky</li><li>Nehledají se hotely, penziony ani samostatné stellplatzy</li><li>Vybavení a provoz se ukážou jen tehdy, když jsou v OSM vyplněné</li></ul></div></details>
             </div>
-            <div class="g2n-nb-control-line"><span class="g2n-nb-label">Perimetr</span><div class="g2n-nb-chip-row">
+            <div class="g2n-nb-control-line g2n-nb-radius-line"><div class="g2n-nb-chip-row">
               ${RADIUS_VALUES.map(v=>`<button type="button" class="g2n-nb-radius" data-nb-radius="${v}">${v} km</button>`).join('')}
             </div></div>
-            <div class="g2n-nb-control-line"><span class="g2n-nb-label">Zobrazit</span><div class="g2n-nb-chip-row">
-              <label class="g2n-nb-toggle"><input id="g2nNbGas" type="checkbox" checked> Benzínky</label>
-              <label class="g2n-nb-toggle"><input id="g2nNbSleep" type="checkbox" checked> Spaní</label>
+            <div class="g2n-nb-control-line g2n-nb-filter-line"><div class="g2n-nb-chip-row">
+              <label class="g2n-nb-toggle g2n-nb-toggle-icon" title="Benzínky" aria-label="Benzínky"><input id="g2nNbGas" type="checkbox" checked aria-label="Benzínky"><span aria-hidden="true">⛽</span><span class="g2n-sr-only">Benzínky</span></label>
+              <label class="g2n-nb-toggle g2n-nb-toggle-icon" title="Spaní" aria-label="Spaní"><input id="g2nNbSleep" type="checkbox" checked aria-label="Spaní"><span aria-hidden="true">🛏</span><span class="g2n-sr-only">Spaní</span></label>
               <button type="button" class="g2n-nb-load" id="g2nNbLoad">Načíst</button>
             </div></div>
           </section>
@@ -5837,7 +5832,7 @@ html.g2n-card-snap .card{
               <span class="g2n-nb-map-hint">posun · zoom</span>
               <div class="g2n-nb-map-controls" aria-label="Ovládání mapy"><button type="button" data-nb-map="plus" title="Přiblížit" aria-label="Přiblížit">+</button><button type="button" data-nb-map="minus" title="Oddálit" aria-label="Oddálit">−</button><button type="button" class="fit" data-nb-map="fit" title="Zobrazit celý perimetr" aria-label="Zobrazit celý perimetr">⌾</button></div>
             </div>
-            <div class="g2n-nb-legend"><span><i class="g2n-nb-dot me"></i> tvoje poloha</span><span><i class="g2n-nb-dot gas"></i> benzínka</span><span><i class="g2n-nb-dot sleep"></i> kemp</span><span><i class="g2n-nb-dot hut"></i> útulna / chata</span><span><i class="g2n-nb-ring"></i> perimetr</span></div>
+            <div class="g2n-nb-legend"><span><i class="g2n-nb-dot me"></i> tvoje poloha</span><span><i class="g2n-nb-dot gas"></i> benzínka</span><span><i class="g2n-nb-dot sleep"></i> kemp</span><span><i class="g2n-nb-dot hut"></i> útulna / chata</span><span class="g2n-nb-perimeter-legend" title="Perimetr aktuálního hledání" aria-label="Perimetr aktuálního hledání"><i class="g2n-nb-ring" aria-hidden="true"></i><span class="g2n-sr-only">Perimetr aktuálního hledání</span></span></div>
           </section>
           <div class="g2n-nb-results" id="g2nNbResults" aria-live="polite"></div>
         </div></div>
@@ -5981,8 +5976,11 @@ html.g2n-card-snap .card{
   function staticUrl(){
     if(!state.view||!state.mapHost)return '';
     const r=hostRect();if(!r)return '';
-    const dpr=Math.min(2,Math.max(1,window.devicePixelRatio||1)),width=Math.round(Math.min(1536,r.width*dpr)),height=Math.round(Math.min(1536,r.height*dpr));
-    const q=new URLSearchParams();q.set('apikey',mapyKey());q.set('mapset','basic');q.set('width',String(width));q.set('height',String(height));q.set('format','webp');q.set('lang','cs');q.set('lon',state.view.center.lon.toFixed(6));q.set('lat',state.view.center.lat.toFixed(6));q.set('zoom',String(Math.round(state.view.zoom)));
+    // Mapy.com Static Maps přijímá šířku i výšku maximálně 1024 px. Pro ostrý
+    // podklad používáme podporované scale=2; viewport Fold už proto nikdy
+    // neodešle neplatný požadavek 1536 × 1536 px.
+    const width=Math.max(1,Math.min(1024,Math.round(r.width))),height=Math.max(1,Math.min(1024,Math.round(r.height)));
+    const q=new URLSearchParams();q.set('apikey',mapyKey());q.set('mapset','basic');q.set('width',String(width));q.set('height',String(height));q.set('scale','2');q.set('format','webp');q.set('lang','cs');q.set('lon',state.view.center.lon.toFixed(6));q.set('lat',state.view.center.lat.toFixed(6));q.set('zoom',String(Math.round(state.view.zoom)));
     return 'https://api.mapy.com/v1/static/map?'+q.toString();
   }
   function refreshMap(){
@@ -6043,7 +6041,7 @@ html.g2n-card-snap .card{
   }
   function clearResults(){state.results=[];state.byId.clear();state.selectedId='';renderResults();updateMapOverlays();}
   function changeRadius(v){
-    if(!RADIUS_VALUES.includes(v)||state.radius===v)return;state.radius=v;saveRadius(v);radiusUi();clearResults();if(state.position)fitCircle();setStatus('Perimetr <strong>'+v+' km</strong> · <strong>Načíst</strong>.','idle');
+    if(!RADIUS_VALUES.includes(v)||state.radius===v)return;state.radius=v;saveRadius(v);radiusUi();clearResults();if(state.position)fitCircle();setStatus('','idle');
   }
   function errorText(err){return String(err&&err.message||err||'Neznámá chyba').replace(/\s+/g,' ').trim().slice(0,380);}
   async function getPosition(){
@@ -6085,6 +6083,138 @@ html.g2n-card-snap .card{
     if(isFamily()||getEl('g2nNbPanel'))return;tabShell();state.tab=getEl('g2nNbTab');state.panel=getEl('g2nNbPanel');state.mapHost=getEl('g2nNbMap');state.mapImg=getEl('g2nNbMapImg');state.mapVector=getEl('g2nNbMapVector');state.markerLayer=getEl('g2nNbMarkerLayer');state.popupLayer=getEl('g2nNbPopupLayer');state.radius=storedRadius();radiusUi();renderResults();syncTabPosition();bindEvents();
   }
   onReady(start);
+})();
+</script>
+
+
+
+<style id="g2n-v88-fold-mobile-polish-style">
+/* v88: Fold-safe OKOLÍ and compact mobile controls. */
+.g2n-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+
+/* Small but visibly doubled controls: glyphs grow, hit areas and surrounding layout stay stable. */
+#btnSettings{display:inline-grid!important;place-items:center;width:40px!important;height:40px!important;min-width:40px!important;padding:0!important;font-size:26px!important;line-height:1!important}
+@media(max-width:520px){#btnSettings{width:36px!important;height:36px!important;min-width:36px!important;flex:0 0 36px!important;font-size:26px!important}}
+.tiletools button[data-act="delphoto"],.tiletools button[data-act="delroute"]{background:#fff!important;color:#000!important;font-size:26px!important;font-weight:900!important}
+
+/* Settings: no repeated summaries, export/import remain compactly adjacent. */
+#settings .g2n-route-settings>summary,#settings .g2n-live-settings>summary{display:none!important}
+#settings .g2n-route-settings,#settings .g2n-live-settings{background:transparent!important;border-color:transparent!important}
+#settings .g2n-route-settings .setting-panel,#settings .g2n-live-settings .setting-panel{padding-top:4px!important}
+.g2n-auth-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:8px!important}
+.g2n-password-field{position:relative;min-width:0}.g2n-password-field #syncPassword{min-width:0!important;padding-right:43px!important}
+.g2n-password-field #syncPasswordLogin{position:absolute!important;right:4px!important;top:4px!important;display:grid!important;place-items:center!important;width:34px!important;height:34px!important;min-height:34px!important;margin:0!important;padding:0!important;border:1px solid #7ee0ad!important;border-radius:8px!important;background:#1b8b56!important;color:#fff!important;font:900 20px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;cursor:pointer!important}
+.g2n-password-field #syncPasswordLogin:active{filter:brightness(1.16);transform:translateY(1px)}
+.sync-html-export{width:100%!important;margin:0 0 8px!important}
+#settings .g2n-trip-reset{border-color:#3f8e68!important;background:#10261c!important}
+#settings .g2n-trip-reset summary{background:#163b29!important;color:#e2ffec!important}
+#settings .g2n-trip-reset [data-tj-action="reset-trip"]{border-color:#79d8a5!important;background:linear-gradient(135deg,#238657,#17633f)!important;color:#fff!important}
+@media(max-width:520px){.g2n-auth-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}.g2n-auth-row input{font-size:12px!important;padding-left:7px!important;padding-right:7px!important}}
+
+/* Dashboard: all five KPI tiles stay on one horizontal line; the consumption state is a secondary line, not a hidden micro-label. */
+.tj-dash .tj-metrics{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:3px!important}
+.tj-dash .tj-metric{padding:6px 4px!important}
+.tj-dash .tj-metric b{font-size:clamp(14px,3.9vw,19px)!important}
+.tj-dash .tj-metric small{display:block!important;min-height:2.05em!important;margin-top:3px!important;color:#aebed0!important;font-size:clamp(7.7px,1.95vw,10px)!important;line-height:1.04!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+.audit-dashbox{display:flex!important;align-items:center!important;gap:9px!important;flex-wrap:wrap!important}.audit-dashbox br{display:none!important}.audit-dash-count{color:#bdd0e4;font-size:13px;font-weight:750;line-height:1.2}
+
+/* Day/card headers: native sticky header, deliberate visual settling when it docks. */
+.card{overflow:clip!important}.card>.chead{position:sticky!important;top:calc(var(--g2n-snap-offset,64px) - 8px)!important;z-index:14!important;background:rgba(26,31,41,.97)!important;backdrop-filter:blur(10px);transition:box-shadow .16s ease,background-color .16s ease,border-color .16s ease}
+.card>.chead.g2n-card-pinned{background:rgba(22,29,39,.985)!important;box-shadow:0 7px 16px rgba(0,0,0,.34),0 1px 0 rgba(132,188,255,.36)!important;border-bottom-color:rgba(132,188,255,.42)!important}
+.card>.chead.g2n-card-pin-enter{animation:g2n-card-head-settle .30s cubic-bezier(.18,.85,.30,1.20)}
+@keyframes g2n-card-head-settle{0%{transform:translateY(-6px)}64%{transform:translateY(1px)}100%{transform:translateY(0)}}
+.card .metarow>.date{font-size:26px!important;line-height:1!important;color:#c2d0e2!important}
+
+/* Media: 1:1 thumbs are deliberately reduced to about 28 % of the route map edge. */
+:root{--g2n-media-tile:clamp(104px,28vw,218px)!important}
+.upper.hasmap .media-row{position:relative!important}.upper.hasmap .media-gallery{position:relative!important}
+@media(min-width:600px){.upper.hasmap .media-row{grid-template-columns:minmax(0,1fr) var(--g2n-side-square,210px)!important}.upper.hasmap .rightmap{width:var(--g2n-side-square,210px)!important}.upper.hasmap .gallery .gtile,.upper.hasmap .gallery.g1 .gtile,.upper.hasmap .gallery .gtile.slot{flex-basis:var(--g2n-side-square,var(--g2n-media-tile))!important;width:var(--g2n-side-square,var(--g2n-media-tile))!important}}
+@media(max-width:599px){.upper.hasmap .gallery .gtile,.upper.hasmap .gallery.g1 .gtile,.upper.hasmap .gallery .gtile.slot{flex-basis:var(--g2n-side-square,var(--g2n-media-tile))!important;width:var(--g2n-side-square,var(--g2n-media-tile))!important}.upper.hasmap .rightmap{width:var(--g2n-side-square,var(--g2n-media-tile))!important;margin-left:auto!important;border-top:0!important;padding-top:10px!important}}
+.media-gallery.g2n-has-more-right::after{content:'›';position:absolute;right:6px;top:50%;z-index:8;display:grid;place-items:center;width:34px;height:25%;min-height:36px;transform:translateY(-50%);border:1px solid rgba(230,244,255,.45);border-radius:999px;background:rgba(219,238,255,.22);backdrop-filter:blur(7px);color:#fff;font:900 clamp(36px,8vw,58px)/.72 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-shadow:0 2px 8px rgba(0,0,0,.45);pointer-events:none}
+.rightmap.has-more:not(.g2n-has-more-down):after{display:none!important}.rightmap .dmap-scrollhint{pointer-events:none!important;display:none!important;left:auto!important;right:8px!important;bottom:8px!important;transform:none!important;width:38px!important;height:25%!important;min-height:36px!important;border-color:rgba(230,244,255,.45)!important;background:rgba(219,238,255,.22)!important;backdrop-filter:blur(7px);color:#fff!important;font-size:clamp(30px,7vw,48px)!important;line-height:.6!important;text-shadow:0 2px 8px rgba(0,0,0,.45)!important}.rightmap.g2n-has-more-down .dmap-scrollhint{display:grid!important}
+
+/* Non-linked media are inspectable in place; linked media remain normal external links. */
+#g2nMediaZoom{position:fixed;inset:0;z-index:180;display:grid;place-items:center;padding:16px;background:rgba(4,8,13,.94);backdrop-filter:blur(9px);cursor:zoom-out}.g2n-media-zoom-img{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;border-radius:8px;box-shadow:0 16px 44px rgba(0,0,0,.68)}
+
+/* Forms: explanation icon is in the header first, titles are intentionally prominent and the meta row has no dead lower strip. */
+#tjModal.tj-form-mode .sheet-head{gap:9px!important;align-items:center!important}
+#tjModal.tj-form-mode .sheet-head h3{font-size:30px!important;line-height:1.03!important;letter-spacing:-.035em!important}
+#tjModal.tj-form-mode .sheet-head .tj-info{position:relative!important;display:block!important;flex:0 0 auto!important;width:auto!important;margin:0!important;z-index:10!important}
+#tjModal.tj-form-mode .sheet-head .tj-info>summary{width:30px!important;height:30px!important}
+#tjModal.tj-form-mode .sheet-head .tj-info>div{left:0!important;right:auto!important;top:38px!important}
+#tjModal.tj-form-mode .tj-form-meta{margin-bottom:4px!important}
+#tjModal.tj-form-mode .tj-photo-choice-row{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+#tjModal.tj-form-mode .tj-photo-choice{min-height:48px!important;padding:8px 9px!important;font-size:14px!important;font-weight:850!important;line-height:1.14!important}
+
+/* OKOLÍ is intentionally title-free. Only background is half transparent; text and borders stay opaque. */
+.g2n-hi-tab{background:linear-gradient(180deg,rgba(43,101,182,.50),rgba(17,54,100,.50))!important}.g2n-nb-tab{background:linear-gradient(180deg,rgba(18,121,98,.50),rgba(7,69,57,.50))!important}.g2n-hi-tab b{color:#ffd85a!important;text-shadow:0 1px 2px rgba(0,0,0,.55)}
+.g2n-nb-head-minimal{min-height:52px!important;justify-content:flex-end!important;padding:7px 10px!important}.g2n-nb-head-minimal .g2n-nb-close{margin-left:auto!important}
+.g2n-nb-status:empty{display:none!important}.g2n-nb-controls-top{justify-content:flex-end!important}.g2n-nb-control-line{display:block!important}.g2n-nb-control-line .g2n-nb-chip-row{display:flex!important;gap:7px!important;align-items:center!important}.g2n-nb-radius-line .g2n-nb-chip-row{flex-wrap:wrap!important}.g2n-nb-filter-line .g2n-nb-chip-row{flex-wrap:nowrap!important}.g2n-nb-toggle-icon{min-width:42px!important;justify-content:center!important;padding:7px 9px!important}.g2n-nb-toggle-icon>span[aria-hidden="true"]{font-size:21px!important;line-height:1!important}.g2n-nb-toggle-icon input{width:15px!important;height:15px!important;flex:none!important}.g2n-nb-load{flex:1 1 auto!important;min-width:82px!important}
+
+/* Only backgrounds of left rail target tabs are translucent. */
+.railbtn:not(.raildashbtn){background:rgba(26,31,41,.50)!important}.railbtn.active{background:rgba(31,111,235,.50)!important}
+</style>
+
+<script id="g2n-v88-fold-mobile-polish-script">
+(function(){
+  'use strict';
+  let raf=0;
+  function topOffset(){
+    const css=getComputedStyle(document.documentElement).getPropertyValue('--g2n-snap-offset');
+    return Math.max(48,parseFloat(css)||64)-8;
+  }
+  function updateStickyHeaders(){
+    const offset=topOffset();
+    document.querySelectorAll('.card>.chead').forEach(head=>{
+      const card=head.closest('.card'); if(!card) return;
+      const rect=head.getBoundingClientRect(), cardRect=card.getBoundingClientRect();
+      const pinned=rect.top<=offset+1 && cardRect.bottom>offset+head.offsetHeight+12;
+      const was=head.classList.contains('g2n-card-pinned');
+      head.classList.toggle('g2n-card-pinned',pinned);
+      if(pinned&&!was){
+        head.classList.remove('g2n-card-pin-enter'); void head.offsetWidth; head.classList.add('g2n-card-pin-enter');
+        window.setTimeout(()=>head.classList.remove('g2n-card-pin-enter'),380);
+      }
+    });
+  }
+  function updateGalleryHints(scope){
+    const root=scope||document;
+    root.querySelectorAll('.upper.hasmap .media-gallery').forEach(host=>{
+      const gallery=host.querySelector('.gallery'); if(!gallery) return;
+      const update=()=>host.classList.toggle('g2n-has-more-right',gallery.scrollLeft+gallery.clientWidth<gallery.scrollWidth-4);
+      if(!gallery.dataset.g2nHintBound){gallery.addEventListener('scroll',update,{passive:true});gallery.dataset.g2nHintBound='1';}
+      update();
+    });
+    root.querySelectorAll('.rightmap.has-more').forEach(panel=>{
+      const scroller=panel.querySelector('.rightmap-scroll'); if(!scroller) return;
+      const update=()=>panel.classList.toggle('g2n-has-more-down',scroller.scrollTop+scroller.clientHeight<scroller.scrollHeight-4);
+      if(!scroller.dataset.g2nHintBound){scroller.addEventListener('scroll',update,{passive:true});scroller.dataset.g2nHintBound='1';}
+      update();
+    });
+  }
+  function schedule(){
+    if(raf) return; raf=requestAnimationFrame(()=>{raf=0;updateStickyHeaders();updateGalleryHints();});
+  }
+  function closeMediaZoom(){document.getElementById('g2nMediaZoom')?.remove();}
+  function openMediaZoom(src,alt){
+    if(!src) return;
+    closeMediaZoom();
+    const zoom=document.createElement('div'); zoom.id='g2nMediaZoom'; zoom.setAttribute('role','dialog'); zoom.setAttribute('aria-label',alt||'Zvětšený obrázek');
+    const img=document.createElement('img'); img.className='g2n-media-zoom-img'; img.src=src; img.alt=alt||''; zoom.appendChild(img);
+    zoom.addEventListener('click',closeMediaZoom,{once:true}); document.body.appendChild(zoom);
+  }
+  document.addEventListener('click',e=>{
+    const host=e.target.closest('.upper.hasmap .gallery .gtile .imgwrap,.upper.hasmap .rightmap .dmap .imgwrap');
+    if(!host||document.body.classList.contains('editing')||host.closest('a')) return;
+    const image=host.querySelector('.tile-fg,.dmap-img,img');
+    if(!image||!image.src) return;
+    e.preventDefault(); e.stopPropagation(); openMediaZoom(image.currentSrc||image.src,image.alt||'');
+  },true);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMediaZoom();});
+  window.addEventListener('scroll',schedule,{passive:true});window.addEventListener('resize',schedule,{passive:true});
+  const app=document.getElementById('app'); if(app)new MutationObserver(schedule).observe(app,{childList:true,subtree:true});
+  window.g2nUpdateMediaHints=schedule;
+  schedule();
 })();
 </script>
 
