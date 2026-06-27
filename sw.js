@@ -1,6 +1,6 @@
-/* go2no v87z — cache refresh for GitHub Pages deployment. */
-const APP_CACHE='go2no-app-v87z-1';
-const ASSET_CACHE='go2no-assets-v86-1';
+/* go2no v87z.1 — opravuje obnovení lokálního obrazového balíku v Android PWA. */
+const APP_CACHE='go2no-app-v87z-2';
+const ASSET_CACHE='go2no-assets-v87z-2';
 const APP_FILES=['./','./index.html','./go2no.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 const ASSET_FILE='./go2no-assets-v86.js';
 self.addEventListener('install',event=>{
@@ -13,7 +13,7 @@ self.addEventListener('install',event=>{
 });
 self.addEventListener('activate',event=>{
   event.waitUntil(caches.keys().then(keys=>Promise.all(
-    keys.filter(key=>key.startsWith('go2no-app-')&&key!==APP_CACHE).map(key=>caches.delete(key))
+    keys.filter(key=>(key.startsWith('go2no-app-')&&key!==APP_CACHE)||(key.startsWith('go2no-assets-')&&key!==ASSET_CACHE)).map(key=>caches.delete(key))
   )).then(()=>self.clients.claim()));
 });
 self.addEventListener('fetch',event=>{
