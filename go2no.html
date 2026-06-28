@@ -1174,11 +1174,11 @@ body.editing .card > .chead > .headboxes > .targetbox > b.ed.editing{box-shadow:
       <summary class="g2n-sr-only" aria-hidden="true"></summary>
       <div class="setting-panel">
         <div class="setting-grid setting-grid-compact">
-          <div class="setting-inline-pair">
+          <div class="setting-inline-triple">
             <label>Průměrná spotřeba (l / 100 km)<input id="cfgCons" type="number" step="0.1" inputmode="decimal"></label>
             <label>Průměrné dotankování (l)<input id="cfgRefuel" type="number" step="0.1" inputmode="decimal"></label>
+            <label>Perimetr sledování cílů dle aktuální GPS (km)<input id="geoRadiusKm" type="number" min="1" max="9999" step="1" inputmode="numeric"></label>
           </div>
-          <div class="setting-single-line"><label>Perimetr sledování cílů dle aktuální GPS (km)<input id="geoRadiusKm" type="number" min="1" max="9999" step="1" inputmode="numeric"></label></div>
         </div>
       </div>
     </details>
@@ -1197,7 +1197,7 @@ body.editing .card > .chead > .headboxes > .targetbox > b.ed.editing{box-shadow:
             <button class="primary" id="syncUpload">Export stavu on-line</button>
             <button id="syncDownload">Import stavu on-line</button>
           </div>
-          <button class="primary sync-html-export" id="doExport">⬇︎ Export HTML…</button>
+          <button class="primary sync-html-export" id="doExport">Export HTML…</button>
           <button id="syncLogin" title="Odešle přihlašovací odkaz e-mailem">Poslat odkaz e-mailem</button>
           <div class="syncstatus" id="syncStatus">Online režim zatím není přihlášený.</div>
         </div>
@@ -2266,7 +2266,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const block=document.createElement('details'); block.id='tjSettingsBlock'; block.className='setting-details g2n-live-settings'; block.open=true;
     block.innerHTML=`<summary class="g2n-sr-only" aria-hidden="true"></summary><div class="setting-panel">
       <p id="tjSettingsState">Cestovní deník zatím není zahájen.</p>
-      <div class="syncrow"><button class="primary" data-tj-action="open-journal">Cestovní deník</button><button data-tj-action="open-report">Přehled a export</button></div>
+      <div class="syncrow g2n-live-settings-report-row"><button data-tj-action="open-report">Přehled a export</button></div>
       <div class="syncrow"><button data-tj-action="download-rates">Stáhnout kurzy</button><button data-tj-action="open-rates">Kurzy ručně</button></div>
       <p id="tjSettingsRates">Kurzy zatím nejsou uloženy.</p>
     </div>`;
@@ -2595,7 +2595,6 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
 
   function openFuelForm(entry){
     const j=ensureJournal(), old=entry||null, last=lastOdometer(j), formId='tjFuelForm';
-    if(!journalStart(j)&&!old){ toast('Nejdřív zahaj cestu výchozím stavem tachometru.'); openStartForm(); return; }
     openJournalModal(old?'Upravit tankování':'Tankování',`<form id="${formId}">${formCommon(formId,old&&old.at,old&&old.gps)}${infoTip('Přesná spotřeba vznikne mezi dvěma tankováními označenými „do plna“; mezitankování se započítají.')}<div class="tj-form-grid"><label class="tj-field">Stav tachometru (km)<input name="odometerKm" required type="number" min="0" step="1" inputmode="numeric" value="${escAttr(old&&old.odometerKm!=null?old.odometerKm:(last&&last.odometerKm!=null?last.odometerKm:''))}"></label><label class="tj-field">Natankováno (l)<input name="liters" required type="number" min="0.01" step="0.01" inputmode="decimal" value="${escAttr(old&&old.liters!=null?old.liters:'')}"></label></div>${moneyFields(j,old)}<div class="tj-fuel-bottomline"><label class="tj-check"><input name="fullTank" type="checkbox"${!old||old.fullTank?' checked':''}>Do plna</label><label class="tj-field tj-fuel-note">Poznámka<input name="note" value="${escAttr(old&&old.note||'')}"></label></div><div class="tj-form-actions"><button type="button" data-tj-action="open-journal">Zpět</button><button class="primary" type="submit">Uložit tankování</button></div></form>`,'form');
     const form=document.getElementById(formId); form._tjGps=old&&old.gps||null; bindGps(form); bindRateCalc(form);
     form.addEventListener('submit',e=>{
@@ -2629,7 +2628,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   }
   function openPauseForm(entry){
     const old=entry||null, formId='tjPauseForm';
-    openJournalModal(old?'Upravit fotopoint / pauzu':'Fotopoint / pauza',`<form id="${formId}">${formCommon(formId,old&&old.at,old&&old.gps)}${infoTip('GPS určí bod na mapě. Plná fotografie zůstává v tomto telefonu; do rodinného náhledu jde jen malý náhled.')}<div class="tj-form-inline"><label class="tj-field">Typ zastávky<select name="pauseType">${Object.entries(TJ_PAUSE).map(([k,v])=>`<option value="${k}"${(old&&old.pauseType||'photo')===k?' selected':''}>${v}</option>`).join('')}</select></label></div><div class="tj-form-inline"><label class="tj-field">Poznámka<textarea name="note">${esc(old&&old.note||'')}</textarea></label></div><div class="tj-photo-choice-row"><label class="tj-photo-choice"><input name="photoCamera" type="file" accept="image/*" capture="environment"><span>📷 Vyfotit</span></label><label class="tj-photo-choice"><input name="photoGallery" type="file" accept="image/*"><span>▣ Vyber z fotogalerie</span></label></div>${photoPreviewHTML(old)}${old&&old.photoThumb?`<label class="tj-check"><input name="removePhoto" type="checkbox">Odstranit fotku z tohoto záznamu</label>`:''}<div class="tj-form-actions"><button type="button" data-tj-action="open-journal">Zpět</button><button class="primary" type="submit">Uložit zastávku</button></div></form>`,'form');
+    openJournalModal(old?'Upravit fotopoint / pauzu':'Fotopoint / pauza',`<form id="${formId}">${formCommon(formId,old&&old.at,old&&old.gps)}${infoTip('GPS určí bod na mapě. Plná fotografie zůstává v tomto telefonu; do rodinného náhledu jde jen malý náhled.')}<div class="tj-form-inline"><label class="tj-field">Typ zastávky<select name="pauseType">${Object.entries(TJ_PAUSE).map(([k,v])=>`<option value="${k}"${(old&&old.pauseType||'photo')===k?' selected':''}>${v}</option>`).join('')}</select></label></div><div class="tj-form-inline"><label class="tj-field">Poznámka<textarea name="note">${esc(old&&old.note||'')}</textarea></label></div><div class="tj-photo-choice-row"><label class="tj-photo-choice"><input name="photoCamera" type="file" accept="image/*" capture="environment"><span class="tj-photo-choice-content"><span class="tj-photo-choice-icon" aria-hidden="true">📷</span><span class="tj-photo-choice-label">Vyfotit</span></span></label><label class="tj-photo-choice"><input name="photoGallery" type="file" accept="image/*"><span class="tj-photo-choice-content"><span class="tj-photo-choice-icon" aria-hidden="true">▣</span><span class="tj-photo-choice-label">Vyber z fotogalerie</span></span></label></div>${photoPreviewHTML(old)}${old&&old.photoThumb?`<label class="tj-check"><input name="removePhoto" type="checkbox">Odstranit fotku z tohoto záznamu</label>`:''}<div class="tj-form-actions"><button type="button" data-tj-action="open-journal">Zpět</button><button class="primary" type="submit">Uložit zastávku</button></div></form>`,'form');
     const form=document.getElementById(formId); form._tjGps=old&&old.gps||null; bindGps(form);
     form.addEventListener('submit',async ev=>{
       ev.preventDefault(); const submit=form.querySelector('[type="submit"]'); if(submit){submit.disabled=true; submit.textContent='Ukládám…';}
@@ -3870,8 +3869,8 @@ function prepCardHTML(leg){
     <header class="chead prep-card-head" data-prep-toggle="${leg.i}" role="button" tabindex="0" aria-expanded="${prepCardExpanded ? 'true' : 'false'}" title="${prepCardToggleTitle()}">
       <div class="daybox prep-daybox-toggle" data-prep-daybox-toggle="${leg.i}" role="button" tabindex="0" aria-expanded="${prepCardExpanded ? 'true' : 'false'}" title="${prepCardToggleTitle()}"><b>${esc(leg.day)}</b><span>den</span></div>
       <div class="htext">
-        <div class="route"><span class="to ed" data-leg="${leg.i}" data-field="to_name">${esc(leg.to_name)||'Přípravy na cestu'}</span></div>
         <div class="metarow"><span class="date" title="Datum jednotlivých etap se odvozuje pouze z data odjezdu v Dni 0">Odjezd: ${esc(departureText)}</span></div>
+        <div class="route"><span class="to ed" data-leg="${leg.i}" data-field="to_name">${esc(leg.to_name)||'Přípravy na cestu'}</span></div>
       </div>
       <a href="#" class="prep-check-headlink" data-prep-checklist="${leg.i}" data-prep-checklist-instant="1" title="Checklist">📋 <span>Checklist</span>${cntTxt}</a>
     </header>
@@ -6143,11 +6142,13 @@ html.g2n-card-snap .card{
 .tj-dash .tj-metric small{display:block!important;min-height:2.05em!important;margin-top:3px!important;color:#aebed0!important;font-size:clamp(7.7px,1.95vw,10px)!important;line-height:1.04!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
 .audit-dashbox{display:flex!important;align-items:center!important;gap:9px!important;flex-wrap:wrap!important}.audit-dashbox br{display:none!important}.audit-dash-count{color:#bdd0e4;font-size:13px;font-weight:750;line-height:1.2}
 
-/* Day/card headers: native sticky header, deliberate visual settling when it docks. */
-.card{overflow:clip!important}.card>.chead{position:sticky!important;top:calc(var(--g2n-snap-offset,64px) - 8px)!important;z-index:14!important;background:rgba(26,31,41,.97)!important;backdrop-filter:blur(10px);transition:box-shadow .16s ease,background-color .16s ease,border-color .16s ease}
-.card>.chead.g2n-card-pinned{background:rgba(22,29,39,.985)!important;box-shadow:0 7px 16px rgba(0,0,0,.34),0 1px 0 rgba(132,188,255,.36)!important;border-bottom-color:rgba(132,188,255,.42)!important}
-.card>.chead.g2n-card-pin-enter{animation:g2n-card-head-settle .30s cubic-bezier(.18,.85,.30,1.20)}
-@keyframes g2n-card-head-settle{0%{transform:translateY(-6px)}64%{transform:translateY(1px)}100%{transform:translateY(0)}}
+/* Day/card headings travel with their own cards. The existing native proximity
+   snap now provides the requested gentle magnetic settling without pinning a
+   cloned-looking header over the following content. */
+.card{overflow:clip!important}
+.card>.chead{position:relative!important;top:auto!important;z-index:auto!important;background:transparent!important;backdrop-filter:none!important;box-shadow:none!important;transition:none!important}
+.card>.chead.g2n-card-pinned{background:transparent!important;box-shadow:none!important;border-bottom-color:var(--line)!important}
+.card>.chead.g2n-card-pin-enter{animation:none!important}
 .card .metarow>.date{font-size:26px!important;line-height:1!important;color:#c2d0e2!important}
 
 /* Media: 1:1 thumbs are deliberately reduced to about 28 % of the route map edge. */
@@ -6189,17 +6190,10 @@ html.g2n-card-snap .card{
     return Math.max(48,parseFloat(css)||64)-8;
   }
   function updateStickyHeaders(){
-    const offset=topOffset();
-    document.querySelectorAll('.card>.chead').forEach(head=>{
-      const card=head.closest('.card'); if(!card) return;
-      const rect=head.getBoundingClientRect(), cardRect=card.getBoundingClientRect();
-      const pinned=rect.top<=offset+1 && cardRect.bottom>offset+head.offsetHeight+12;
-      const was=head.classList.contains('g2n-card-pinned');
-      head.classList.toggle('g2n-card-pinned',pinned);
-      if(pinned&&!was){
-        head.classList.remove('g2n-card-pin-enter'); void head.offsetWidth; head.classList.add('g2n-card-pin-enter');
-        window.setTimeout(()=>head.classList.remove('g2n-card-pin-enter'),380);
-      }
+    // v90: headings are intentionally not sticky. The document-level native
+    // proximity snapping is the only settling behaviour for the main route rail.
+    document.querySelectorAll('.card>.chead.g2n-card-pinned,.card>.chead.g2n-card-pin-enter').forEach(head=>{
+      head.classList.remove('g2n-card-pinned','g2n-card-pin-enter');
     });
   }
   function updateGalleryHints(scope){
@@ -6355,5 +6349,139 @@ html.g2n-card-snap .card{
   },true);
 })();
 </script>
+
+
+<style id="g2n-v90-prep-snap-photo-fix-style">
+/* v90: Day 0 uses two factual rows. Departure gets the full row so no part of
+   its date is forced below an unused right-hand area on narrow phones. */
+.prep-card .chead{
+  display:grid!important;
+  grid-template-columns:59.5px minmax(0,1fr) auto!important;
+  grid-template-areas:
+    "day departure departure"
+    "day route checklist"!important;
+  column-gap:11px!important;
+  row-gap:7px!important;
+  align-items:center!important;
+}
+.prep-card .prep-daybox-toggle{grid-area:day!important;align-self:start!important}
+.prep-card .htext{display:contents!important}
+.prep-card .htext>.metarow{grid-area:departure!important;margin:0!important;min-width:0!important}
+.prep-card .htext>.route{grid-area:route!important;min-width:0!important}
+.prep-card .prep-check-headlink{grid-area:checklist!important;align-self:center!important;margin:0!important}
+.prep-card .htext>.metarow>.date{white-space:nowrap!important}
+
+/* The icons and labels have their own flex row. It keeps both controls optically
+   centered even when the gallery button wraps to two lines on a narrow display. */
+#tjModal.tj-form-mode .tj-photo-choice{display:flex!important;align-items:center!important;justify-content:center!important;line-height:1!important}
+#tjModal.tj-form-mode .tj-photo-choice-content{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:7px!important;
+  max-width:100%!important;
+  line-height:1!important;
+  transform:translateY(-.5px)!important;
+}
+#tjModal.tj-form-mode .tj-photo-choice-icon{
+  display:inline-grid!important;
+  place-items:center!important;
+  flex:0 0 auto!important;
+  width:18px!important;
+  height:18px!important;
+  margin:0!important;
+  font-size:18px!important;
+  line-height:1!important;
+}
+#tjModal.tj-form-mode .tj-photo-choice-label{display:block!important;line-height:1.08!important}
+</style>
+
+
+<style id="g2n-v91-settings-compact-triple-style">
+/* v91: the three route inputs are one factual row on every viewport. Their
+   labels may wrap, but input values retain a usable width and never overflow. */
+#settings .setting-inline-triple{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  align-items:start!important;
+  gap:7px!important;
+  min-width:0!important;
+}
+#settings .setting-inline-triple label{
+  display:block!important;
+  min-width:0!important;
+  margin:0!important;
+  color:var(--mut)!important;
+  font-size:12px!important;
+  line-height:1.14!important;
+  overflow-wrap:anywhere!important;
+}
+#settings .setting-inline-triple input{
+  display:block!important;
+  min-width:0!important;
+  width:100%!important;
+  height:39px!important;
+  margin-top:5px!important;
+  padding:8px 7px!important;
+  font-size:14px!important;
+  font-variant-numeric:tabular-nums!important;
+}
+/* One remaining report/export button, without a blank second column on wider
+   layouts and without a duplicated journal launcher. */
+#settings #tjSettingsBlock .g2n-live-settings-report-row{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+}
+#settings #tjSettingsBlock .g2n-live-settings-report-row button{
+  width:auto!important;
+  min-width:150px!important;
+}
+@media(max-width:420px){
+  #settings .setting-inline-triple{gap:5px!important}
+  #settings .setting-inline-triple label{font-size:10.5px!important;line-height:1.13!important}
+  #settings .setting-inline-triple input{height:37px!important;margin-top:4px!important;padding:7px 5px!important;font-size:13px!important}
+}
+@media(max-width:350px){
+  #settings .setting-inline-triple{gap:4px!important}
+  #settings .setting-inline-triple label{font-size:10px!important}
+  #settings .setting-inline-triple input{font-size:12px!important;padding-left:4px!important;padding-right:4px!important}
+}
+</style>
+
+
+<style id="g2n-v92-baseline-and-soft-snap-style">
+/* v92: all three route-setting input boxes share one visual baseline. The text
+   area above them is intentionally fixed to three compact lines; wording may
+   wrap without moving an individual value field downward. */
+#settings .setting-inline-triple label{
+  display:grid!important;
+  grid-template-rows:3.42em 39px!important;
+  align-content:start!important;
+}
+#settings .setting-inline-triple input{
+  align-self:end!important;
+  margin-top:0!important;
+}
+@media(max-width:420px){
+  #settings .setting-inline-triple label{grid-template-rows:3.39em 37px!important}
+  #settings .setting-inline-triple input{margin-top:0!important}
+}
+@media(max-width:350px){
+  #settings .setting-inline-triple label{grid-template-rows:3.39em 37px!important}
+}
+
+/* The route rail remains native proximity snapping: it only catches when a
+   header naturally finishes near the top. The settled card gets a restrained
+   3px/1px elastic confirmation; it never pins a header or blocks free reading
+   within a long card. */
+.card.g2n-snap-landed{animation-duration:.44s!important;animation-timing-function:cubic-bezier(.20,.84,.30,1.16)!important}
+@keyframes g2n-card-snap-land{
+  0%{transform:translate3d(0,-3px,0);box-shadow:0 9px 22px rgba(0,0,0,.54),0 0 0 1px rgba(114,178,255,.20)}
+  54%{transform:translate3d(0,1px,0);box-shadow:0 3px 13px rgba(0,0,0,.46),0 0 0 1px rgba(114,178,255,.12)}
+  76%{transform:translate3d(0,-.7px,0)}
+  100%{transform:translate3d(0,0,0);box-shadow:0 2px 12px #0007}
+}
+</style>
 
 </body></html>
