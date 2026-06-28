@@ -1,6 +1,6 @@
-/* go2no v98 — family mode changes only from Settings. */
-const APP_CACHE='go2no-app-v98-1';
-const ASSET_CACHE='go2no-assets-v98-1';
+/* go2no v102 — Den 0 je bílý obrys bez modré výplně. */
+const APP_CACHE='go2no-app-v102-1';
+const ASSET_CACHE='go2no-assets-v102-1';
 const APP_FILES=['./','./index.html','./go2no.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 const ASSET_FILE='./go2no-assets-v86.js';
 self.addEventListener('install',event=>{

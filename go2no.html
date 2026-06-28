@@ -6,7 +6,7 @@
 <!-- go2no v88: Fold-safe podklad OKOLÍ (Mapy.com Static Maps max. 1024 px + scale=2), kompaktní mobilní ovládání. OKOLÍ dál používá Mapy.com + OpenStreetMap/Overpass, bez Google Maps/Places. -->
 <!-- go2no v87q: etapy 1–46 používají Mapy.com API; pouze etapa 40 vykresluje uloženou GPX stopu kvůli záměrným fotopointům mimo přímou trasu. -->
 <!-- go2no v87p: fáze 2 je aktivní pro všechny silniční etapy 1–46; Mapy.com statická mapa trasu vždy počítá mezi správnými břehy trajektů. Odkazy na původní plánování zůstávají beze změny. -->
-<!-- go2no v98: test fáze 2. Etapy 1–4 používají severně orientované čtvercové online mapy Mapy.com pouze po získání skutečné geometrie; při selhání zůstává screenshot a popisek uvádí důvod. -->
+<!-- go2no v101: test fáze 2. Etapy 1–4 používají severně orientované čtvercové online mapy Mapy.com pouze po získání skutečné geometrie; při selhání zůstává screenshot a popisek uvádí důvod. -->
 <!-- go2no v70: navazuje na v69; obnovuje a vynucuje modrý čtverec čísla dne na kartách itineráře. -->
 <!-- go2no v87j: nativní proximity scroll-snap mezi kartami + jemné dosednutí; mapové změny z v87i zachovány. -->
 <link rel="manifest" href="manifest.webmanifest">
@@ -1598,14 +1598,49 @@ const EMBED_CFG={"cons":6.1,"refuel":20,"refuelMode":"manual","geoRadiusKm":100,
   function auditCountLabel(total){ return total===1?'1 nález':(total>=2&&total<=4?total+' nálezy':total+' nálezů'); }
   function dashAuditHTML(){
     const total=hardCount()+softCount();
-    return `<div class="audit-dashbox"><button id="auditDashOpen" title="Otevřít kontrolu itineráře">Otevřít kontrolu</button><span class="audit-dash-count">${total?auditCountLabel(total):'bez nálezů'}</span></div>`;
+    // Tlačítko kontroly ponechává svůj původní vzhled, rozměry i význam.
+    // Pouze dostává vlastní řádek, aby se vlevo mohlo vložit malé zelené spuštění cesty.
+    return `<div class="audit-dashbox"><div class="audit-dash-actions"><button id="auditDashOpen" title="Otevřít kontrolu itineráře">Otevřít kontrolu</button></div><span class="audit-dash-count">${total?auditCountLabel(total):'bez nálezů'}</span></div>`;
+  }
+
+  function syncDashStartButtonSize(scope){
+    const host=scope||document.getElementById('roletaBody'); if(!host) return;
+    const start=host.querySelector('.audit-dash-actions .tj-dash-start-btn');
+    const audit=host.querySelector('.audit-dash-actions #auditDashOpen');
+    if(!start||!audit) return;
+    // Skutečná velikost se načítá z existujícího tlačítka Kontroly. Zelené tlačítko
+    // je tedy stejné i při jiné šířce displeje či jiném systémovém písmu.
+    start.style.width=''; start.style.minWidth=''; start.style.height='';
+    const auditStyle=getComputedStyle(audit);
+    // I typografie je převzatá z původního tlačítka Kontroly; odlišná zůstává
+    // jen zelená barva a její význam.
+    start.style.setProperty('font',auditStyle.font,'important');
+    start.style.setProperty('letter-spacing',auditStyle.letterSpacing,'important');
+    const r=audit.getBoundingClientRect();
+    if(r.width>0&&r.height>0){
+      start.style.width=Math.ceil(r.width)+'px';
+      start.style.minWidth=Math.ceil(r.width)+'px';
+      start.style.height=Math.ceil(r.height)+'px';
+    }
   }
 
   function applyDashAudit(){
     const rb=document.getElementById('roletaBody'); if(!rb) return;
     if(rb.querySelector('.audit-dashbox')) return;
-    rb.insertAdjacentHTML('beforeend', dashAuditHTML());
-    const btn=rb.querySelector('#auditDashOpen'); if(btn) btn.onclick=openAuditModal;
+    const host=rb.querySelector('.tj-dash-bottom-actions')||rb;
+    host.insertAdjacentHTML('beforeend', dashAuditHTML());
+    const box=host.querySelector('.audit-dashbox');
+    const actions=box&&box.querySelector('.audit-dash-actions');
+    const start=host.querySelector('.tj-dash-start-btn');
+    // Před startem: zelené tlačítko vlevo, původní Kontrola vpravo. Po startu
+    // se zelené tlačítko již nevyrenderuje a zůstane jen původní Kontrola.
+    if(start&&actions) actions.insertBefore(start,actions.firstChild);
+    const btn=host.querySelector('#auditDashOpen'); if(btn) btn.onclick=openAuditModal;
+    requestAnimationFrame(()=>syncDashStartButtonSize(rb));
+  }
+  if(!window.__g2nDashStartSizeListener){
+    window.__g2nDashStartSizeListener=true;
+    window.addEventListener('resize',()=>requestAnimationFrame(()=>syncDashStartButtonSize()),{passive:true});
   }
 
   // ---------- Poloha telefonu → žlutá ouška cílů v nastaveném okruhu ----------
@@ -2133,10 +2168,15 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const nextText=x.next?cleanName(x.next.to_name):'Všechny cíle jsou odbavené';
     const title=hasStart?`${x.routeFrom} → ${x.routeTo}`:'';
     const helper=hasStart?`Další: ${nextText}`:'';
-    const startButton=`<button class="tj-dash-start-btn" data-tj-action="start" title="${hasStart?'Zobrazit nebo upravit začátek cesty':'Zahájit živou cestu'}">${hasStart?'Začátek cesty':'Zahájit cestu'}</button>`;
+    // Po zahájení se zelené tlačítko z dashboardu úplně vytratí. Úprava
+    // uloženého startu patří do deníku, ne mezi běžné ovládací prvky dashboardu.
+    const startButton=hasStart?'':`<button class="tj-dash-start-btn" data-tj-action="start" title="Zahájit živou cestu">Zahájit cestu</button>`;
     const status=hasStart?`<div class="tj-dash-status">${esc(latest)}</div>`:'';
+    /* Bez startovacího tlačítka nahoře není v nezahájeném stavu co zobrazovat:
+       prázdná hlavička se proto vůbec nevyrenderuje a hlavní obsah jde výš. */
+    const topLine=(title||status)?`<div class="dash-topline"><div class="tj-dash-route">${esc(title)}<small>${esc(helper)}</small></div><div class="tj-dash-headtools">${status}</div></div>`:'';
     return `<section class="dash tj-dash tj-dash-compact">
-      <div class="dash-topline"><div class="tj-dash-route">${esc(title)}<small>${esc(helper)}</small></div><div class="tj-dash-headtools">${status}${startButton}</div></div>
+      ${topLine}
       <div class="dash-main"><div class="dash-km"><b>${esc(realText)}</b><span>skutečně od startu</span></div><div class="dash-rem"><b>${esc(remainText)}</b><span>zbývá podle plánu</span></div></div>
       <div class="dash-progress" title="Skutečně ujeto ${esc(realText)} vůči upravenému plánu ${fmtN(x.plan.adjustedKm)} km"><span style="width:${p}%"></span><i style="left:${p}%"></i></div>
       <div class="dash-scale"><span>0 km</span><span>${fmtN(x.plan.adjustedKm)} km · ${fmtN(p,1)} %</span></div>
@@ -2148,6 +2188,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
         ${dashMetric('Dny',dayText,daySub,'',dayTitle)}
       </div>
       ${timeline}
+      <div class="tj-dash-bottom-actions" aria-label="Hlavní akce dashboardu">${startButton}</div>
     </section>`;
   }
   function journalRailHTML(){
@@ -6732,4 +6773,175 @@ body.family-view #doExport,body.family-view .sync-html-export,body.family-view [
 @media(max-width:520px){.family-watermark{top:54px;max-width:calc(100vw - 76px);font-size:10px;letter-spacing:.035em;padding:5px 6px}.g2n-family-mode-box{align-items:flex-start}.g2n-mode-switch{margin-top:5px}.g2n-family-unlock-actions{display:grid;grid-template-columns:1fr 1fr}.g2n-family-unlock-actions button{width:100%}}
 </style>
 
+
+
+<style id="g2n-v99-dashboard-tab-style">
+/* v99: třetí pravá záložka DASHBOARD. V rodinném náhledu bez OKOLÍ zaujme jeho místo. */
+.g2n-dash-tab{
+  position:fixed;right:0;top:0;z-index:75;display:flex;align-items:center;justify-content:center;
+  width:48px!important;min-width:48px!important;height:124px!important;min-height:124px!important;
+  padding:10px 8px!important;box-sizing:border-box!important;
+  writing-mode:vertical-rl;transform:none!important;
+  background:linear-gradient(180deg,rgba(183,47,61,.86),rgba(100,16,28,.80));color:#fff;
+  border:1px solid rgba(255,143,153,.72);border-top:0;border-right:0;border-radius:0 0 0 14px;
+  box-shadow:0 5px 16px rgba(0,0,0,.46);cursor:pointer;user-select:none;touch-action:manipulation;
+  font:850 15px/1.02 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif!important;
+  letter-spacing:.065em!important;backdrop-filter:blur(9px);
+}
+.g2n-dash-tab:active{transform:translateX(1px)!important;filter:brightness(1.12)}
+.g2n-dash-tab.is-open{
+  background:linear-gradient(180deg,rgba(222,62,79,.96),rgba(132,20,35,.92));
+  box-shadow:0 0 0 1px rgba(255,255,255,.16) inset,0 0 18px rgba(222,62,79,.34),0 5px 16px rgba(0,0,0,.46);
+}
+.g2n-nb-tab.g2n-nb-tab-dashboard-adjacent,.g2n-hi-tab.g2n-hi-tab-dashboard-adjacent{border-bottom-left-radius:0!important}
+/* V rodinném náhledu se OKOLÍ vůbec nevytváří; toto pravidlo je pojistka pro již otevřenou/starší stránku. */
+body.family-view .g2n-nb-tab,body.family-view .g2n-nb-panel{display:none!important}
+@media(max-width:420px){
+  .g2n-dash-tab{width:46px!important;min-width:46px!important;height:116px!important;min-height:116px!important;font-size:14px!important}
+}
+@media(prefers-reduced-motion:reduce){.g2n-dash-tab{transition:none!important}}
+</style>
+
+<script id="g2n-v99-dashboard-tab-script">
+(function(){
+  'use strict';
+  const TAB_ID='g2nDashTab';
+  const get=id=>document.getElementById(id);
+  const isFamily=()=>new URLSearchParams(location.search).get('view')==='family'||document.body.classList.contains('family-view');
+
+  function syncState(){
+    const tab=get(TAB_ID), roleta=get('roleta');
+    if(!tab) return;
+    const open=!!(roleta&&roleta.classList.contains('open'));
+    tab.classList.toggle('is-open',open);
+    tab.setAttribute('aria-expanded',String(open));
+  }
+
+  function syncPosition(){
+    const tab=get(TAB_ID), topTab=get('g2nHiTab');
+    if(!tab||!topTab) return;
+    const family=isFamily();
+    const nearbyTab=get('g2nNbTab');
+    let anchor=topTab;
+
+    if(!family&&nearbyTab){
+      /* Běžný režim: TOP 60 → OKOLÍ → DASHBOARD. */
+      nearbyTab.classList.add('g2n-nb-tab-dashboard-adjacent');
+      topTab.classList.remove('g2n-hi-tab-dashboard-adjacent');
+      anchor=nearbyTab;
+    }else{
+      /* Rodinný náhled: TOP 60 → DASHBOARD; OKOLÍ zde není vůbec. */
+      nearbyTab?.classList.remove('g2n-nb-tab-dashboard-adjacent');
+      topTab.classList.add('g2n-hi-tab-dashboard-adjacent');
+    }
+
+    const r=anchor.getBoundingClientRect();
+    tab.style.top=Math.round(r.bottom+1)+'px';
+  }
+
+  function toggle(event){
+    event?.preventDefault();
+    event?.stopPropagation();
+    /* Pokud je otevřený celoobrazovkový TOP 60 panel, dashboard by jinak
+       vznikl skrytý pod ním. Nejdřív proto korektně zavřeme právě tento panel. */
+    if(get('g2nHiPanel')?.classList.contains('open')) get('g2nHiClose')?.click();
+    if(typeof window.toggleDash==='function') window.toggleDash();
+    else{
+      const roleta=get('roleta'), shade=get('roletaBg');
+      if(!roleta||!shade) return;
+      const next=!roleta.classList.contains('open');
+      roleta.classList.toggle('open',next);
+      shade.classList.toggle('open',next);
+    }
+    window.setTimeout(syncState,0);
+  }
+
+  function start(attempt){
+    if(get(TAB_ID)) return;
+    const topTab=get('g2nHiTab');
+    if(!topTab){
+      if((attempt||0)<40) window.setTimeout(()=>start((attempt||0)+1),50);
+      return;
+    }
+
+    /* V plné verzi počkáme, až samostatný skript OKOLÍ vytvoří zelenou záložku.
+       V rodinném náhledu ji záměrně nečekáme. */
+    if(!isFamily()&&!get('g2nNbTab')&&(attempt||0)<40){
+      window.setTimeout(()=>start((attempt||0)+1),50);
+      return;
+    }
+
+    const tab=document.createElement('div');
+    tab.id=TAB_ID;
+    tab.className='g2n-dash-tab';
+    tab.title='Otevřít nebo zavřít dashboard';
+    tab.setAttribute('role','button');
+    tab.setAttribute('tabindex','0');
+    tab.setAttribute('aria-controls','roleta');
+    tab.setAttribute('aria-label','Otevřít nebo zavřít dashboard');
+    tab.textContent='DASHBOARD';
+    document.body.appendChild(tab);
+
+    tab.addEventListener('click',toggle);
+    tab.addEventListener('keydown',event=>{
+      if(event.key==='Enter'||event.key===' '){ event.preventDefault(); toggle(event); }
+    });
+
+    const roleta=get('roleta');
+    if(roleta) new MutationObserver(syncState).observe(roleta,{attributes:true,attributeFilter:['class']});
+    new MutationObserver(syncPosition).observe(document.body,{attributes:true,attributeFilter:['class']});
+    if('ResizeObserver' in window){
+      const observer=new ResizeObserver(syncPosition);
+      observer.observe(topTab);
+      const nearbyTab=get('g2nNbTab'); if(nearbyTab) observer.observe(nearbyTab);
+    }
+    window.addEventListener('resize',syncPosition,{passive:true});
+    window.addEventListener('orientationchange',syncPosition,{passive:true});
+
+    syncPosition();
+    syncState();
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>start(0),{once:true});
+  else start(0);
+})();
+</script>
+
+
+<style id="g2n-v101-dashboard-compact-actions-style">
+/* v101: malá spodní dvojice. Kontrola se velikostně ani vizuálně nemění. */
+.tj-dash .dash-topline{gap:7px!important;margin-bottom:4px!important}
+.tj-dash-bottom-actions{margin:10px 0 0!important}
+.tj-dash-bottom-actions:empty{display:none!important}
+/* Jen nový vnitřní obal drží dvojici pohromadě; samotné tlačítko Kontroly
+   dál používá výhradně své původní pravidlo .audit-dashbox button. */
+.audit-dash-actions{display:inline-flex;align-items:center;gap:9px;flex-wrap:nowrap;vertical-align:top}
+.audit-dash-actions>.tj-dash-start-btn{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  box-sizing:border-box!important;margin:8px 0 0!important;padding:7px 10px!important;
+  border:1px solid #68e58c!important;border-radius:9px!important;
+  background:linear-gradient(135deg,#22c55e,#149e4a)!important;color:#fff!important;
+  font:inherit!important;font-weight:800!important;line-height:normal!important;white-space:nowrap!important;
+  box-shadow:0 0 0 1px rgba(255,255,255,.08) inset,0 6px 14px rgba(18,135,63,.28)!important;
+  cursor:pointer!important;touch-action:manipulation!important;
+}
+.audit-dash-actions>.tj-dash-start-btn:active{filter:brightness(1.16);transform:translateY(1px)}
+@media(max-width:420px){.audit-dash-actions{gap:7px}}
+</style>
+
+
+<style id="g2n-v102-day0-outline-style">
+/* v102: Den 0 zůstává rozměrově shodný, ale je pouze bílý obrys bez modré výplně. */
+.prep-card > .chead > .prep-daybox-toggle.daybox{
+  background:transparent!important;
+  background-color:transparent!important;
+  background-image:none!important;
+  border:2px solid rgba(255,255,255,.96)!important;
+  box-shadow:none!important;
+}
+.prep-card > .chead > .prep-daybox-toggle.daybox > b,
+.prep-card > .chead > .prep-daybox-toggle.daybox > span{
+  color:#fff!important;
+}
+</style>
 </body></html>
