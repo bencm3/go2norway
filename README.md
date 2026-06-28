@@ -1,30 +1,43 @@
-# go2no v86 — obrázky v assets a offline cache
+# go2no v98 – jedna PWA, rodinný náhled přepínaný v Nastavení
 
-## Co se změnilo
+Tento balíček obsahuje pouze **jednu** instalovatelnou aplikaci `go2no`. Rodinný náhled není druhá aplikace ani druhá ikona. Je to režim uložený pouze na konkrétním telefonu.
 
-- `go2no.html` už neobsahuje 214 vložených obrázků v base64. Statické mapy, fotografie etap, ikony a podklady jsou v `assets/v86/`.
-- Service worker po prvním otevření stáhne celý statický obsah do cache telefonu. Po úspěšné instalaci lze aplikaci používat offline ve stejném rozsahu jako načtený statický obsah.
-- Sedm problematických fotografií TOP60 bylo nahrazeno uživatelskými snímky: Sverd i fjell, Vinnufossen, Sala Silvergruva, Falu Gruva, LKAB Kiruna, Punkaharju a Saimaa.
-- Ostatních 53 fotografií TOP60 zatím zůstává na jejich současných vzdálených zdrojích. Jejich lokální archivace vyžaduje dodání nebo stažení konkrétních licenčně ověřených souborů; aplikace pro ně zachovává dosavadní funkčnost.
-- Export HTML zůstává samostatný: při exportu se použité mapy a lokální grafické podklady automaticky vloží zpět do vytvářené zálohy.
+## Nahrání na GitHub
 
-## Co nahrát
+Nahraj všechny soubory z této složky přímo do kořene repozitáře `go2norway` a nahraď jimi stávající soubory. Nezakládej podsložku a nenahrávej ZIP jako soubor.
 
-Nahraj **celý obsah tohoto adresáře** do kořene repozitáře, včetně podsložky `assets`. Nejde o ZIP k rozbalení na GitHubu: obsah složky je nutné nahrát tak, aby v repozitáři vznikla cesta `assets/v86/...`.
+Základní adresa aplikace:
 
-Kořen repozitáře po nahrání obsahuje zejména:
+`https://bencm3.github.io/go2norway/go2no.html`
 
-- `go2no.html`
-- `index.html`
-- `manifest.webmanifest`
-- `icon-192.png`, `icon-512.png`
-- `sw.js`
-- `assets/v86/...`
+## Nastavení rodinného telefonu
 
-## Po nasazení
+1. Otevři běžnou adresu aplikace v Chromu a dej **Instalovat aplikaci**.
+2. Otevři instalovanou aplikaci → ozubené kolečko **Nastavení** → **Online synchronizace**.
+3. Zapni přepínač **Rodinný náhled na tomto zařízení** a potvrď.
+4. Aplikace se znovu otevře už jako rodinný náhled.
 
-1. Otevři GitHub Pages aplikaci online.
-2. Nech ji jednou plně doběhnout; service worker při tom uloží statický obsah do cache.
-3. Pro kontrolu pak aplikaci zavři a otevři znovu. Mapy a vložené fotografie etap musí zůstat k dispozici i bez signálu.
+Rodinný režim na tom telefonu:
 
-Nastavení GitHub Pages, Supabase, IndexedDB, deníku a přihlášení se nemění.
+- blokuje úpravy, živý deník, akční piktogramy i veškeré exporty;
+- automaticky stáhne aktuální online stav při otevření, po návratu do aplikace a každou minutu;
+- zobrazuje pouze jemný neaktivní vodotisk `Rodinný náhled · jen k prohlížení`;
+- nezabírá místo v rozvržení a **nejde na něj klepnout**.
+
+## Návrat do plné verze
+
+Jediná cesta je v **Nastavení → Online synchronizace**: klepni na zapnutý přepínač rodinného náhledu. Přepínač se sám nevypne, ale přímo pod ním otevře pole pro e-mail a heslo účtu go2no. Po úspěšném ověření se zařízení vrátí do plné verze.
+
+Vodotisk žádný dialog ani heslo nikdy neotevírá.
+
+## Volitelná rychlá aktivace rodinného režimu
+
+Při úplně prvním otevření můžeš použít adresu:
+
+`https://bencm3.github.io/go2norway/go2no.html?view=family`
+
+Ta pouze nastaví stejný lokální rodinný režim. Není nutná; hlavní a doporučený způsob je přepínač v Nastavení.
+
+## Důležité
+
+Přihlášení uvnitř aplikace patří k účtu Supabase, kde leží online stav, nikoli ke GitHubu. GitHub pouze hostuje soubory aplikace.

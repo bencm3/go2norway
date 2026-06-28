@@ -1,6 +1,6 @@
-/* go2no v87z.1 — opravuje obnovení lokálního obrazového balíku v Android PWA. */
-const APP_CACHE='go2no-app-v93-1';
-const ASSET_CACHE='go2no-assets-v87z-2';
+/* go2no v98 — family mode changes only from Settings. */
+const APP_CACHE='go2no-app-v98-1';
+const ASSET_CACHE='go2no-assets-v98-1';
 const APP_FILES=['./','./index.html','./go2no.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 const ASSET_FILE='./go2no-assets-v86.js';
 self.addEventListener('install',event=>{
