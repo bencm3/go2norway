@@ -1,7 +1,7 @@
-/* go2no v102 — Den 0 je bílý obrys bez modré výplně. */
-const APP_CACHE='go2no-app-v102-1';
-const ASSET_CACHE='go2no-assets-v102-1';
-const APP_FILES=['./','./index.html','./go2no.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+/* go2no v127 — vizuální úklid hlavní plochy a čistší ikona zápisu během jízdy. */
+const APP_CACHE='go2no-app-v135-1';
+const ASSET_CACHE='go2no-assets-v113-1';
+const APP_FILES=['./','./index.html','./go2no.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./weather-icons/rain-color.png','./weather-icons/rain-gray.png','./weather-icons/storm-color.png','./weather-icons/storm-gray.png','./weather-icons/sun-color.png','./weather-icons/sun-gray.png','./weather-icons/temp-cold.png','./weather-icons/temp-hot.png','./weather-icons/temp-neutral.png','./weather-icons/wind-color.png','./weather-icons/wind-gray.png','./weather-icons/refresh-missing.png','./action-logbook-white.png','./action-logbook-clean.svg'];
 const ASSET_FILE='./go2no-assets-v86.js';
 self.addEventListener('install',event=>{
   event.waitUntil(Promise.all([
