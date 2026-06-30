@@ -2921,7 +2921,16 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   function resetTrip(){
     if(!confirm('Vymazat cestovní deník, stav tachometru na startu a označení navštívených/vynechaných cílů? Připravený itinerář zůstane.')) return;
     if(!confirm('Druhé potvrzení: opravdu zahájit novou cestu a nevratně smazat všechny živé záznamy?')) return;
-    const j=ensureJournal(); j.resetAt=nowIso(); j.start=null; j.entries=[]; clearLocalPhotos().catch(()=>{}); persistJournal('nová cesta'); closeJournalModal(); toast('Živá data byla vymazána; itinerář zůstal zachován.');
+    const j=ensureJournal(); j.resetAt=nowIso(); j.start=null; j.entries=[];
+    /* V137: nová cesta začíná bez archivní předpovědi. Nejde o `delete`, protože
+       online zařízení cfg slučují; explicitně prázdný snapshot se tak synchronizuje
+       i do rodinného náhledu a přepíše tam staré meteorologické pásy. */
+    if(cfg&&typeof cfg==='object') cfg.weatherSnapshot={
+      version:137,source:'MET Norway · Locationforecast 2.0',originalPlanByDay:{},
+      schedule:{days:{}},days:{},generatedAt:null,nextRefreshAt:0,lastAttemptAt:null,
+      lastError:'',itineraryFingerprint:'',resetAt:nowIso()
+    };
+    clearLocalPhotos().catch(()=>{}); persistJournal('nová cesta'); closeJournalModal(); toast('Živá data byla vymazána včetně uložené předpovědi; itinerář zůstal zachován.');
   }
 
   async function downloadRates(){
@@ -7725,8 +7734,9 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
    * - only the main mode fetches / calculates, family view renders a synchronized snapshot;
    * - raw point responses stay local (IndexedDB); synced cfg only carries a compact daily result.
    */
-  const VERSION=121;
+  const VERSION=137;
   const SOURCE='MET Norway · Locationforecast 2.0';
+  const SAMPLING_MODEL='direct-segments-fixed-slots-v136';
   const TZ='Europe/Prague';
   const DB_NAME='go2no_weather_v117';
   const DB_VERSION=1;
@@ -7739,6 +7749,10 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
   const ROUTE_CACHE_MS=7*24*60*60*1000;
   const DEFAULT_START_MIN=8*60;
   const DEFAULT_DAY_CUTOFF_MIN=20*60;
+  const SAMPLE_START_MIN=8*60;
+  const SAMPLE_MIDDLE_MIN=13*60+30;
+  const SAMPLE_END_MIN=19*60;
+  const SAMPLE_TIME_TOLERANCE_MS=2*60*60*1000;
   const REQUEST_TIMEOUT_MS=15000;
   const memPoints=new Map();
   const memRoutes=new Map();
@@ -7854,20 +7868,24 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
     try{ const a=typeof window.sorted==='function'?window.sorted():window.legs; return (a||[]).filter(l=>l&&!l.prep&&!/^0$/.test(String(l.day||''))); }catch(e){return [];} }
   function dayGroups(){
     const map=new Map();
+    /* `sorted()` already represents the order rendered in the itinerary. `_order` is
+       therefore the visible order. Internal `i` is only a technical identity and must
+       never reorder the weather route. */
     legsAll().forEach((leg,idx)=>{ const d=String(Number(leg.day)||0); if(!Number(d)||Number(d)<=0)return; if(!map.has(d))map.set(d,{id:'d'+d,day:Number(d),legs:[]}); map.get(d).legs.push(Object.assign({_order:idx},leg)); });
-    return [...map.values()].sort((a,b)=>a.day-b.day).map(g=>{g.legs.sort((a,b)=>(Number(a.i)||a._order)-(Number(b.i)||b._order));return g;});
+    return [...map.values()].sort((a,b)=>a.day-b.day).map(g=>{g.legs.sort((a,b)=>Number(a._order)-Number(b._order));return g;});
   }
   function tripStartKey(){
     try{ const d=typeof window.tripStartDate==='function'?window.tripStartDate():null; if(d&&Number.isFinite(d.getTime())) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }catch(e){}
     const c=cfgObj()||{}; const raw=String(c.trip_start||c.tripStart||''); const m=raw.match(/(\d{4})-(\d{2})-(\d{2})/); return m?m[0]:'';
   }
   function initialStartMinutes(){
-    try{ const raw=String(typeof window.tripStartText==='function'?window.tripStartText():''); const m=raw.match(/(?:T|\s)(\d{1,2}):(\d{2})/); if(m)return clamp(Number(m[1])*60+Number(m[2]),0,1439); }catch(e){} return DEFAULT_START_MIN;
+    /* V136: Meteobox nepřebírá čas zahájení cesty. Každý den používá pevný ranní slot 08:00. */
+    return SAMPLE_START_MIN;
   }
   function ensureBasePlan(groups){
     const s=state(true); if(!s)return null;
     if(!s.originalPlanByDay||typeof s.originalPlanByDay!=='object')s.originalPlanByDay={};
-    const start=tripStartKey(); const mins=finite(s.plannedStartMinutes)?Number(s.plannedStartMinutes):initialStartMinutes(); s.plannedStartMinutes=mins;
+    const start=tripStartKey(); const mins=SAMPLE_START_MIN; s.plannedStartMinutes=mins;
     /* Před zahájením cesty je plán živý: změna data startu nesmí ponechat staré dny předpovědi. Po zahájení se původní plán již nemění. */
     const started=!!parseMs(journal().start&&journal().start.at);
     const first=groups[0]; const expectedFirst=start&&first?addDays(start,first.day-1):'';
@@ -7901,11 +7919,11 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
   }
   function targetId(leg){ return String(leg&&leg.i!=null?leg.i:(leg&&leg.num!=null?leg.num:'')); }
   function allOrder(groups){ return groups.flatMap(g=>g.legs.map(l=>Object.assign({_dayId:g.id,_day:g.day},l))); }
-  function routeFingerprint(groups,states,anchor){
-    // header_marker je součástí otisku: přepnutí trajektu musí přepočítat
-    // naplánovanou stopu i navazující časový rozvrh, nikoli použít starou cache.
-    const legPart=allOrder(groups).map(l=>[l.i,l.day,l.from_gps||'',l.to_gps||'',String(l.header_marker||''),states.get(targetId(l))&&states.get(targetId(l)).status||'pending'].join(':')).join('|');
-    return [legPart,anchor&&anchor.mode||'',anchor&&anchor.at||0,anchor&&anchor.point?pointKey(anchor.point):''].join('~');
+  function routeFingerprint(groups,states){
+    /* V136: počasí závisí výhradně na viditelném pořadí a GPS úsecích. Dlaždice
+       trajektu dál patří GPS auditu, ale pro meteobox nemění geometrii ani čas. */
+    const legPart=allOrder(groups).map(l=>[l.num||'',l.day,l.from_gps||'',l.to_gps||'',states.get(targetId(l))&&states.get(targetId(l)).status||'pending'].join(':')).join('|');
+    return [SAMPLING_MODEL,legPart].join('~');
   }
   function buildAnchor(groups,states,j){
     const startAt=parseMs(j.start&&j.start.at);
@@ -7930,16 +7948,10 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
   }
   function mapRouteKey(from,to,leg){ return [pointKey(from),pointKey(to),String(leg&&leg.routeType||leg&&leg.mapy_route_type||'car_fast'),leg&&leg.mapy_waypoints||'',String(leg&&leg.header_marker||'')].join('|'); }
   async function mapRoute(from,to,leg){
+    /* Legacy helper deliberately kept inert. V136 does not call it, and it must not
+       send any Mapy Routing request even if a future internal call reaches it. */
     if(!from||!to)return {coords:[],durationMin:declaredMinutes(leg),synthetic:true};
-    const key=mapRouteKey(from,to,leg), cached=memRoutes.get(key)||await idbGet(STORE_ROUTES,key);
-    if(cached&&cached.coords&&cached.at&&now()-cached.at<ROUTE_CACHE_MS){ memRoutes.set(key,cached);return cached; }
-    let route=null;
-    if(!hasFerry(leg)&&online()&&typeof window.go2noMapyRoute==='function'){
-      try{ route=await window.go2noMapyRoute({from,to,routeType:leg&&leg.mapy_route_type||leg&&leg.routeType||'car_fast',waypoints:leg&&leg.mapy_waypoints||'',avoidToll:!!(leg&&leg.mapy_avoid_toll),avoidHighways:!!(leg&&leg.mapy_avoid_highways)}); }catch(e){route=null;}
-    }
-    const coords=route&&Array.isArray(route.coords)&&route.coords.length>1?route.coords:[[from.lon,from.lat],[to.lon,to.lat]];
-    const data={coords,durationMin:clamp(n(route&&route.durationSec,0)/60||declaredMinutes(leg),10,24*60),synthetic:!(route&&route.coords&&route.coords.length>1),at:now()};
-    memRoutes.set(key,data); idbPut(STORE_ROUTES,key,data); return data;
+    return {coords:[[from.lon,from.lat],[to.lon,to.lat]],durationMin:declaredMinutes(leg),synthetic:true,at:now()};
   }
   function compactSegmentsForGroup(group,all,states,anchor,isFirst){
     const out=[]; let previous=null; const firstPending=group.legs.find(l=>!(states.get(targetId(l))||{}).status||states.get(targetId(l)).status!=='visited'&&states.get(targetId(l)).status!=='skipped');
@@ -7963,54 +7975,75 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
     });
     return out;
   }
+  function directSegmentsForGroup(group,states){
+    /* Each rendered target is a separate straight GPS segment.  No end point is ever
+       auto-connected to the next target's start point; that deliberately keeps ferries
+       and other discontinuities out of the meteorological geometry. */
+    const out=[];
+    (group&&group.legs||[]).forEach(leg=>{
+      const st=states&&states.get(targetId(leg));
+      if(st&&st.status==='skipped')return;
+      const from=normalPoint(leg.from_gps), to=normalPoint(leg.to_gps);
+      if(!from||!to)return;
+      out.push({leg,from,to,lengthKm:hav(from,to)});
+    });
+    return out;
+  }
+  function pointAtDirectSegments(segs,ratio){
+    const usable=(segs||[]).filter(seg=>seg&&seg.from&&seg.to&&Number.isFinite(Number(seg.lengthKm)));
+    if(!usable.length)return null;
+    const total=usable.reduce((sum,seg)=>sum+Math.max(0,Number(seg.lengthKm)||0),0);
+    if(total<=0)return {lat:Number(usable[0].from.lat),lon:Number(usable[0].from.lon)};
+    const target=total*clamp(ratio,0,1); let acc=0;
+    for(const seg of usable){
+      const length=Math.max(0,Number(seg.lengthKm)||0);
+      if(acc+length>=target){
+        const q=length?(target-acc)/length:0;
+        return {lat:Number(seg.from.lat)+(Number(seg.to.lat)-Number(seg.from.lat))*q,lon:Number(seg.from.lon)+(Number(seg.to.lon)-Number(seg.from.lon))*q};
+      }
+      acc+=length;
+    }
+    const last=usable[usable.length-1].to;
+    return {lat:Number(last.lat),lon:Number(last.lon)};
+  }
   async function buildSchedule(){
     const groups=dayGroups(), s=ensureBasePlan(groups); if(!s)return {days:[],fingerprint:''};
-    const j=journal(), states=currentTargetStates(j), anchor=buildAnchor(groups,states,j), all=allOrder(groups);
+    const j=journal(), states=currentTargetStates(j), anchor=buildAnchor(groups,states,j);
     const originals=s.originalPlanByDay||{};
     const todayKey=dateKey(now());
     const pendingGroups=groups.filter(g=>g.legs.some(l=>{const st=states.get(targetId(l));return !(st&&['visited','skipped'].includes(st.status));}));
-    if(!pendingGroups.length)return {days:[],fingerprint:routeFingerprint(groups,states,anchor),anchor};
+    if(!pendingGroups.length)return {days:[],fingerprint:routeFingerprint(groups,states),anchor};
     let firstIdx=0;
     if(anchor.lastVisited){ const d=Number(anchor.lastVisited.leg.day)||0; const i=pendingGroups.findIndex(g=>g.day>=d); if(i>=0)firstIdx=i; }
     else if(!anchor.started){ const i=pendingGroups.findIndex(g=>{const p=originals[g.id];return p&&p.dateKey>=todayKey;}); if(i>=0)firstIdx=i; }
     const selected=pendingGroups.slice(firstIdx,firstIdx+MAX_DAYS);
-    if(!selected.length)return {days:[],fingerprint:routeFingerprint(groups,states,anchor),anchor};
-    let currentKey=''; let cursorMin=Number(s.plannedStartMinutes)||DEFAULT_START_MIN; let prevOrig=''; let first=true; const result=[];
+    if(!selected.length)return {days:[],fingerprint:routeFingerprint(groups,states),anchor};
+    let currentKey=''; let prevOrig=''; let first=true; const result=[];
     for(const group of selected){
       const orig=(originals[group.id]||{}).dateKey||'';
       if(first){
         currentKey=anchor.started?dateKey(anchor.at||now()):(orig||todayKey);
         if(!currentKey)currentKey=todayKey;
-        cursorMin=anchor.started?Math.max(0,Math.min(1439,Math.floor((anchor.at-zonedMs(currentKey,0))/60000))):Number(s.plannedStartMinutes)||DEFAULT_START_MIN;
-        if(!anchor.started)cursorMin=Number(s.plannedStartMinutes)||DEFAULT_START_MIN;
       }else{
         const gap=Math.max(1,diffDays(prevOrig,orig)||1);
-        const dayAfter=addDays(result[result.length-1].estimatedDateKey,Math.max(1,gap));
-        const previousFinish=result[result.length-1].finishAt||zonedMs(result[result.length-1].estimatedDateKey,DEFAULT_DAY_CUTOFF_MIN);
-        const minNext=addDays(dateKey(previousFinish),1);
-        currentKey=dayAfter<minNext?minNext:dayAfter;
-        cursorMin=Number(s.plannedStartMinutes)||DEFAULT_START_MIN;
+        currentKey=addDays(result[result.length-1].estimatedDateKey,Math.max(1,gap));
       }
-      const segs=compactSegmentsForGroup(group,all,states,anchor,first);
-      const routed=[];
-      for(const seg of segs){ const r=await mapRoute(seg.from,seg.to,seg.leg); routed.push(Object.assign({},seg,{route:r})); }
-      const coords=[]; routed.forEach((seg,idx)=>{const c=seg.route.coords||[];if(idx&&coords.length&&c.length&&coords[coords.length-1][0]===c[0][0]&&coords[coords.length-1][1]===c[0][1])coords.push(...c.slice(1));else coords.push(...c);});
+      const segs=directSegmentsForGroup(group,states);
       const fallbackStart=segs[0]&&segs[0].from||normalPoint(group.legs[0]&&group.legs[0].from_gps);
       const fallbackEnd=segs[segs.length-1]&&segs[segs.length-1].to||normalPoint(group.legs[group.legs.length-1]&&group.legs[group.legs.length-1].to_gps);
-      const allCoords=coords.length>1?coords:(fallbackStart&&fallbackEnd?[[fallbackStart.lon,fallbackStart.lat],[fallbackEnd.lon,fallbackEnd.lat]]:[]);
-      const totalMin=routed.reduce((sum,x)=>sum+Number(x.route.durationMin||0),0)||group.legs.reduce((sum,l)=>sum+declaredMinutes(l),0);
-      const startAt=zonedMs(currentKey,cursorMin), midAt=startAt+totalMin*30000, finishAt=startAt+totalMin*60000;
+      const startAt=zonedMs(currentKey,SAMPLE_START_MIN);
+      const midAt=zonedMs(currentKey,SAMPLE_MIDDLE_MIN);
+      const finishAt=zonedMs(currentKey,SAMPLE_END_MIN);
       const samples=[
-        {key:'start',label:'Začátek',point:allCoords.length?pointAt(allCoords,0):fallbackStart,at:startAt},
-        {key:'middle',label:'Střed trasy',point:allCoords.length?pointAt(allCoords,.5):fallbackStart,at:midAt},
-        {key:'end',label:'Cíl',point:allCoords.length?pointAt(allCoords,1):fallbackEnd,at:finishAt}
+        {key:'start',label:'Výjezd',point:fallbackStart,at:startAt},
+        {key:'middle',label:'Střed dne',point:pointAtDirectSegments(segs,.5)||fallbackStart,at:midAt},
+        {key:'end',label:'Plánovaný cíl',point:fallbackEnd,at:finishAt}
       ].filter(x=>x.point&&finite(x.point.lat)&&finite(x.point.lon));
-      const routeReal=routed.some(x=>!x.route.synthetic);
-      result.push({id:group.id,day:group.day,originalDateKey:orig,estimatedDateKey:currentKey,startAt,finishAt,totalMin:Math.round(totalMin),samples,routeReal,anchorMode:first?anchor.mode:'continuity'});
+      result.push({id:group.id,day:group.day,originalDateKey:orig,estimatedDateKey:currentKey,startAt,finishAt,totalMin:0,samples,routeReal:false,anchorMode:'fixed-day-slots'});
       prevOrig=orig; first=false;
     }
-    result.forEach(d=>{ d.signature=[d.id,d.day,d.originalDateKey,d.estimatedDateKey,Math.round(Number(d.startAt||0)/60000),Math.round(Number(d.finishAt||0)/60000),d.totalMin,d.routeReal?'road':'fallback',d.anchorMode||'',(d.samples||[]).map(x=>[x.key,pointKey(x.point),Math.round(Number(x.at||0)/60000)].join('@')).join('|')].join('~'); });
-    const fingerprint=[routeFingerprint(groups,states,anchor),tripStartKey(),Number(s.plannedStartMinutes)||DEFAULT_START_MIN,result.map(d=>d.signature).join('||')].join('###');
+    result.forEach(d=>{ d.signature=[SAMPLING_MODEL,d.id,d.day,d.originalDateKey,d.estimatedDateKey,Math.round(Number(d.startAt||0)/60000),Math.round(Number(d.finishAt||0)/60000),(d.samples||[]).map(x=>[x.key,pointKey(x.point),Math.round(Number(x.at||0)/60000)].join('@')).join('|')].join('~'); });
+    const fingerprint=[routeFingerprint(groups,states),tripStartKey(),SAMPLING_MODEL,result.map(d=>d.signature).join('||')].join('###');
     return {days:result,fingerprint,anchor};
   }
   function proxyUrl(lat,lon){
@@ -8056,7 +8089,7 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
   function closestSeries(data,at){
     const arr=data&&data.properties&&data.properties.timeseries||[]; let best=null,delta=Infinity;
     arr.forEach(x=>{const t=parseMs(x&&x.time);const d=Math.abs(t-at);if(t&&d<delta){best=x;delta=d;}});
-    return best&&delta<=9*3600000?best:null;
+    return best&&delta<=SAMPLE_TIME_TOLERANCE_MS?best:null;
   }
   function symbolLabel(code){
     const x=String(code||'').toLowerCase();
@@ -8144,7 +8177,7 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
         lat:day.samples[i]&&Number(day.samples[i].point.lat).toFixed(4),
         lon:day.samples[i]&&Number(day.samples[i].point.lon).toFixed(4),
         temp:s.temp,tempMin:s.tempMin,tempMax:s.tempMax,cloud:s.cloud,wind:s.wind,windDir:s.windDir,gust:s.gust,
-        precip:s.precip,precipProb:s.precipProb,thunderProb:s.thunderProb,symbol:s.symbol,forecastHours:s.forecastHours
+        precip:s.precip,precipProb:s.precipProb,thunderProb:s.thunderProb,symbol:s.symbol,forecastHours:s.forecastHours,forecastAt:s.time||''
       })),
       sunIndex:indexSun(samples), rainIndex:indexRain(samples), thunderIndex:indexThunder(samples), windIndex:indexWind(samples),
       tempMax:tempMaxs.length?Math.max(...tempMaxs):null, tempMin:tempMins.length?Math.min(...tempMins):null,
@@ -8156,7 +8189,24 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
     result.text=dailyText(samples,result); return result;
   }
   function scheduleCompact(schedule){ const days={}; (schedule.days||[]).forEach(d=>{days[d.id]={id:d.id,day:d.day,originalDateKey:d.originalDateKey,estimatedDateKey:d.estimatedDateKey,startAt:d.startAt,finishAt:d.finishAt,totalMin:d.totalMin,anchorMode:d.anchorMode,routeReal:d.routeReal,signature:d.signature||''};}); return {generatedAt:iso(now()),anchor:schedule.anchor?{mode:schedule.anchor.mode,at:schedule.anchor.at||0,source:schedule.anchor.source||''}:null,days}; }
-  function staleRecord(d,s){ if(!d)return false; const fetched=Number(d.fetchedAt||0); return !!fetched && now()-fetched>STALE_AFTER_MS; }
+  function historicalFreezeAt(d){
+    if(!d)return 0;
+    const key=String(d.estimatedDateKey||d.originalDateKey||'');
+    const end=zonedMs(key,SAMPLE_END_MIN);
+    return Number.isFinite(end)?end+STALE_AFTER_MS:0;
+  }
+  function historicalRecord(d){
+    const cutoff=historicalFreezeAt(d);
+    return !!cutoff&&now()>cutoff;
+  }
+  function staleRecord(d){
+    if(!d)return false;
+    const fetched=Number(d.fetchedAt||0);
+    /* Piktogramy šednou buď po 12 h od poslední úspěšné aktualizace, nebo –
+       i kdyby byl lokální cache později dotázán – nejpozději 12 h po plánovaném
+       konci již proběhlého dne. Číselné hodnoty zůstávají beze změny. */
+    return (!!fetched&&now()-fetched>STALE_AFTER_MS)||historicalRecord(d);
+  }
   function iconFile(kind,value,stale){
     const t=Number(value);
     if(kind==='sun')return stale?'weather-icons/sun-gray.png':'weather-icons/sun-color.png';
@@ -8287,13 +8337,19 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
       modal=document.createElement('div');modal.id='g2nWeatherModal';modal.className='g2n-weather-modal';
       modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');document.body.appendChild(modal);
     }
-    const stale=staleRecord(day), err=!!day.lastError;
-    const warning=err
-      ? 'Poslední pokus o obnovení nebyl úspěšný. Zobrazuje se poslední uložená předpověď.'
-      : (stale?(online()?'Poslední aktualizace je starší než 12 hodin; piktogramy proto šednou.':'Aplikace je offline a poslední aktualizace je starší než 12 hodin.'):'');
+    const historical=historicalRecord(day), stale=staleRecord(day), err=!!day.lastError;
+    const warning=historical
+      ? 'Tento den už proběhl. Zobrazuje se zafixovaný uložený meteorologický odhad; piktogramy jsou úmyslně šedé, čísla zůstávají zachována.'
+      : (err
+        ? 'Poslední pokus o obnovení nebyl úspěšný. Zobrazuje se poslední uložená předpověď.'
+        : (stale?(online()?'Poslední aktualizace je starší než 12 hodin; piktogramy proto šednou.':'Aplikace je offline a poslední aktualizace je starší než 12 hodin.'):''));
     const points=(day.samples||[]).map(x=>{
       const interval=finite(x.forecastHours)?' / '+Math.round(x.forecastHours)+' h':'';
-      return '<div class="g2n-weather-point"><div class="where">'+esc(x.label||'Bod trasy')+'</div><div class="cond">'+esc(symbolLabel(x.symbol))+(finite(x.precip)?' · srážky '+fmt1(x.precip)+' mm'+interval:'')+(finite(x.precipProb)?' · '+Math.round(x.precipProb)+' %':'')+'</div><div class="metric">'+(finite(x.temp)?Math.round(x.temp)+'°':'—')+(finite(x.wind)?' · '+fmt1(x.wind)+' m/s':'')+'</div></div>';
+      const planned=Number(x.at||0)?timeText(x.at):'';
+      const sourceAt=parseMs(x.forecastAt||'');
+      const sourceNote=sourceAt&&planned&&timeText(sourceAt)!==planned?' · MET '+timeText(sourceAt):'';
+      const where=(x.label||'Bod trasy')+(planned?' · '+planned:'')+sourceNote;
+      return '<div class="g2n-weather-point"><div class="where">'+esc(where)+'</div><div class="cond">'+esc(symbolLabel(x.symbol))+(finite(x.precip)?' · srážky '+fmt1(x.precip)+' mm'+interval:'')+(finite(x.precipProb)?' · '+Math.round(x.precipProb)+' %':'')+'</div><div class="metric">'+(finite(x.temp)?Math.round(x.temp)+'°':'—')+(finite(x.wind)?' · '+fmt1(x.wind)+' m/s':'')+'</div></div>';
     }).join('')||'<div class="g2n-weather-detail-cell">Pro tento den ještě nejsou uložena podrobná bodová data.</div>';
     const orig=day.originalDateKey||sch&&sch.originalDateKey||'', estimate=day.estimatedDateKey||sch&&sch.estimatedDateKey||'';
     const dateLine='Aktuální odhad: '+localDateFull(estimate)+(orig&&estimate&&orig!==estimate?' · původní plán: '+localDateFull(orig):'')+' — Poslední úspěšná aktualizace: '+freshText(day.fetchedAt)+'.';
@@ -8311,8 +8367,8 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
     modal.innerHTML='<section class="g2n-weather-sheet" role="document"><div class="g2n-weather-handle"></div><div class="g2n-weather-sheet-head"><div><div class="g2n-weather-sheet-title">Den '+esc(day.day||'')+' · počasí na trase</div><div class="g2n-weather-sheet-sub">'+esc(dateLine)+'</div></div><button type="button" class="g2n-weather-close" data-g2n-weather-close aria-label="Zavřít">×</button></div>'+
       (warning?'<div class="g2n-weather-status'+(stale?' stale':'')+(err?' error':'')+'">'+esc(warning)+'</div>':'')+
       '<div class="g2n-weather-kpis">'+kpis+'</div>'+
-      '<div class="g2n-weather-detail-grid"><div class="g2n-weather-detail-cell g2n-weather-detail-route"><b>Vzorkování trasy</b>'+(day.routeReal?'tři body byly vzaty z reálného silničního vedení':'pro část trasy je použit záložní geografický odhad')+'</div></div>'+
-      '<div class="g2n-weather-section-title">Začátek · střed · cíl</div><div class="g2n-weather-points">'+points+'</div>'+
+      '<div class="g2n-weather-detail-grid"><div class="g2n-weather-detail-cell g2n-weather-detail-route"><b>Vzorkování itineráře</b>Tři pevné orientační body: 08:00 na výjezdu, 13:30 v polovině součtu přímých GPS úseků a 19:00 v plánovaném cíli. Meteobox nepoužívá silniční trasování a automaticky nespojuje konec jedné karty se začátkem další.</div></div>'+
+      '<div class="g2n-weather-section-title">08:00 · 13:30 · 19:00</div><div class="g2n-weather-points">'+points+'</div>'+
       '<div class="g2n-weather-source">Data: <a href="https://api.met.no/" target="_blank" rel="noopener">MET Norway</a> · Locationforecast 2.0 · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a><br>Indexy 0–9 zůstávají pouze orientační zkratkou na hlavní dlaždici. Zde jsou prognostické hodnoty pro tři body trasy; „slunce“ vychází z oblačnosti, nejde o měřenou délku slunečního svitu.</div></section>';
     modal.classList.add('open'); document.body.classList.add('g2n-weather-modal-open');
   }
@@ -8341,8 +8397,10 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
       const refreshNeeded=needsRefresh(s,schedule,force);
       const candidateDays=schedule.days.slice(0,MAX_DAYS);
       const current=Object.assign({},s.days||{});
-      /* Jiná trasa, čas nebo den znamenají jiný meteorologický dotaz. Starý souhrn se nesmí vydávat za nový. */
-      candidateDays.forEach(day=>{const old=current[day.id];if(old&&old.scheduleSignature!==day.signature)delete current[day.id];});
+      /* Jiná trasa, čas nebo den znamenají jiný meteorologický dotaz. U budoucích
+         a probíhajících dnů se starý souhrn zahodí. Den uzavřený déle než 12 h je
+         naopak archivní: nepřepisuje se a nesmí zmizet jen kvůli pozdější úpravě trasy. */
+      candidateDays.forEach(day=>{const old=current[day.id];if(old&&old.scheduleSignature!==day.signature&&!historicalRecord(old))delete current[day.id];});
       s.schedule=scheduleCompact(schedule); s.itineraryFingerprint=schedule.fingerprint||''; s.days=current;
       if(!schedule.days.length){s.generatedAt=s.generatedAt||iso(now());s.lastError='';persist(s);decorate();return {empty:true};}
       if(!online()) {s.lastAttemptAt=iso(now());s.lastError='offline';persist(s);decorate();return {offline:true};}
@@ -8350,6 +8408,9 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
       s.lastAttemptAt=iso(now()); s.lastError='';
       let networkFailure=''; const failedDays=new Set();
       for(const day of candidateDays){
+        /* V137: skutečně proběhlý den je historie. Neposíláme pro něj další síťové
+           dotazy ani jej nepřepisujeme současnou prognózou. */
+        if(current[day.id]&&historicalRecord(current[day.id])) continue;
         const sourceRows=[]; let usable=true; let dayError='';
         for(const sample of day.samples){
           const got=await pointForecast(sample.point);
@@ -9548,6 +9609,51 @@ body.family-view .card:not(.prep-card) > .chead > .headboxes > .g2n-route-action
   white-space:nowrap!important;
   margin-left:3px!important;
   margin-right:3px!important;
+}
+</style>
+
+
+<!-- go2no v136: větší meteobox bez změny struktury záhlaví. -->
+<style id="g2n-v136-weather-scale-style">
+/* V136: vždy využít dostupnou vodorovnou rezervu. Datum je 20 px na všech
+   displejích; piktogramy 17×17 px. Číslice jsou 15 px nad 420 px a nikdy
+   neklesnou pod 13 px na užších šířkách. */
+.card:not(.prep-card) .g2n-weather-date-line > .date{
+  font-size:20px!important;
+  line-height:1.03!important;
+}
+.card:not(.prep-card) .g2n-weather-temp,
+.card:not(.prep-card) .g2n-weather-item{
+  font-size:15px!important;
+}
+.card:not(.prep-card) .g2n-weather-temp{
+  min-height:20px!important;
+}
+.card:not(.prep-card) .g2n-weather-icon{
+  width:17px!important;
+  height:17px!important;
+}
+@media(max-width:420px){
+  .card:not(.prep-card) .g2n-weather-temp,
+  .card:not(.prep-card) .g2n-weather-item{
+    font-size:13px!important;
+  }
+  .card:not(.prep-card) .g2n-weather-icon{
+    width:17px!important;
+    height:17px!important;
+  }
+  .card:not(.prep-card) .g2n-weather-date-line > .date{font-size:20px!important}
+}
+@media(max-width:360px){
+  .card:not(.prep-card) .g2n-weather-temp,
+  .card:not(.prep-card) .g2n-weather-item{
+    font-size:13px!important;
+  }
+  .card:not(.prep-card) .g2n-weather-icon{
+    width:17px!important;
+    height:17px!important;
+  }
+  .card:not(.prep-card) .g2n-weather-date-line > .date{font-size:20px!important}
 }
 </style>
 
