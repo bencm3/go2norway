@@ -3,6 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
+<!-- go2no v131: záchrana němých klepnutí rozšířena z tlačítek Zahájit/Ukončit na všechna tlačítka rolety a deníkového modálu (po nehybném klepnutí se do 250 ms čeká na click; nepřijde-li, vyvolá se náhradně, opožděný duplicitní click se pohltí). Detail záznamu má Zpět · Smazat · Upravit stejně velké v jedné řádce, Smazat červeně. -->
 <!-- go2no v130: němé klepnutí na Zahájit/Ukončit cestu v roletě. Start/konec nově reagují už na pointerup (nezávisle na syntéze click události), proti dvojímu otevření chrání časové razítko; a dokud cesta běží, nabízí tlačítko Ukončit cestu také deník, jehož ovládání funguje spolehlivě. -->
 <!-- go2no v129: záznam „Konec cesty“. Kontextové tlačítko dashboardu (Zahájit → Ukončit → souhrn), formulář s koncovým stavem tachometru, řádek v deníku, cílová vlajka 🏁 v mapě; procenta průběhu se zobrazují reálně i přes 100 % plánu. Konec je běžný záznam type:'end' – merge, synchronizace i exporty beze změny struktury. -->
 <!-- go2no v128: oprava živé cesty po návratu z Norska. (1) Editace záznamu už nikdy automaticky nepřepíše uloženou GPS aktuální polohou; obnova jen tlačítkem ⌖. (2) Poloha/kotva se řadí podle času události, ne času editace. (3) Záznamy „cíl vynechán / vrácen“ negenerují řádek deníku, bod trasy ani symbol mapy. (4) Zelené tlačítko Zahájit cestu má záložní přímý posluchač a start lze doplnit i zpětně z deníku. -->
@@ -2899,7 +2900,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const grid=details.map(([k,v])=>`<div class="tj-detail-item"><span>${esc(k)}</span>${String(v).startsWith('<a')?'<b>'+v+'</b>':'<b>'+esc(v)+'</b>'}</div>`).join('');
     const note=e.note?`<div class="tj-detail-note">${esc(e.note)}</div>`:`<p class="tj-subtle">Bez poznámky.</p>`;
     const photo=e.photoThumb?`<div class="tj-photo-card"><img src="${escAttr(e.photoThumb)}" alt="Náhled fotografie" data-tj-action="view-photo" data-id="${escAttr(e.id)}"><small>${e.photoId?'Plná komprimovaná kopie je uložená pouze v tomto telefonu.':'K dispozici je pouze sdílený náhled fotografie.'}</small></div>`:'';
-    const actions=familyView?`<div class="tj-form-actions"><button class="primary" data-tj-action="open-journal">Zpět do deníku</button><button data-tj-action="open-report">Přehled</button></div>`:`<div class="tj-form-actions"><button data-tj-action="open-journal">Zpět do deníku</button><button class="primary" data-tj-action="edit-entry" data-id="${escAttr(e.id)}">Upravit záznam</button></div><div class="tj-inline-actions" style="margin-top:9px"><button data-tj-action="delete-entry" data-id="${escAttr(e.id)}">Smazat záznam</button></div>`;
+    const actions=familyView?`<div class="tj-form-actions"><button class="primary" data-tj-action="open-journal">Zpět do deníku</button><button data-tj-action="open-report">Přehled</button></div>`:`<div class="tj-form-actions tj-form-actions-three"><button data-tj-action="open-journal">Zpět</button><button class="tj-danger" data-tj-action="delete-entry" data-id="${escAttr(e.id)}">Smazat</button><button class="primary" data-tj-action="edit-entry" data-id="${escAttr(e.id)}">Upravit</button></div>`;
     openJournalModal('Detail záznamu',`${journalTabs('journal')}<div class="tj-target-form-title">${esc(entryTitle(e))}</div><div class="tj-detail-grid">${grid}</div>${note}${photo}${actions}`,'detail');
   }
 
@@ -3536,25 +3537,40 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
 
 
   function installDelegatedEvents(){
-    /* v130: klepnutí na Zahájit/Ukončit cestu se na některých telefonech v roletě
-       dashboardu nikdy nepřeloží na click (na cestě zůstalo tlačítko němé).
-       Pointer události ale doručeny jsou – proto tato dvojice posluchačů otevře
-       formulář už na pointerup po nehybném klepnutí. Click handler níže pak díky
-       časovému razítku __g2nBoundaryTapAt neproběhne podruhé. */
-    let boundaryPtr=null;
+    /* v131: záchrana němých klepnutí. Na telefonu uživatele se dotyk na některých
+       tlačítkách rolety a deníkového modálu nikdy nepřeloží na click (dashboardové
+       Zahájit/Ukončit, spodní tlačítka delších formulářů). Pointer události ale
+       doručeny jsou. Tento mechanismus po nehybném klepnutí na tlačítko počká
+       250 ms na skutečný click – a nepřijde-li, vyvolá jej náhradně (btn.click(),
+       což u type=submit korektně odešle formulář). Opožděný pravý click po
+       náhradním se pohltí, takže na zdravých telefonech se nic nezdvojí. */
+    const RESCUE_SCOPE='#tjModal button, #tjModal [data-tj-action], #roleta button, #roleta [data-tj-action]';
+    let rescuePtr=null;
     document.addEventListener('pointerdown',e=>{
-      const b=e.target.closest&&e.target.closest('[data-tj-action="start"],[data-tj-action="end"]');
-      boundaryPtr=b?{b:b,x:e.clientX,y:e.clientY,t:Date.now()}:null;
+      const b=e.target.closest&&e.target.closest(RESCUE_SCOPE);
+      rescuePtr=b?{b:b,x:e.clientX,y:e.clientY,t:Date.now()}:null;
+    },true);
+    document.addEventListener('click',e=>{
+      const b=e.target.closest&&e.target.closest(RESCUE_SCOPE);
+      if(!b)return;
+      b.__g2nClickAt=Date.now();
+      if(e.isTrusted&&b.__g2nSynthAt&&Date.now()-b.__g2nSynthAt<600){
+        /* pravý click dorazil až po náhradním – druhé provedení se zahodí */
+        e.preventDefault(); e.stopPropagation();
+      }
     },true);
     document.addEventListener('pointerup',e=>{
-      if(!boundaryPtr)return; const p=boundaryPtr; boundaryPtr=null;
-      const b=e.target.closest&&e.target.closest('[data-tj-action="start"],[data-tj-action="end"]');
+      if(!rescuePtr)return; const p=rescuePtr; rescuePtr=null;
+      const b=e.target.closest&&e.target.closest(RESCUE_SCOPE);
       if(!b||b!==p.b)return;
       if(Math.abs(e.clientX-p.x)+Math.abs(e.clientY-p.y)>14||Date.now()-p.t>700)return;
-      if(familyView)return;
-      if(Date.now()<(window.__g2nBoundaryTapAt||0))return;
-      window.__g2nBoundaryTapAt=Date.now()+800;
-      try{ if(b.dataset.tjAction==='end')openEndForm(); else openStartForm(); }catch(_){ }
+      const upAt=Date.now();
+      window.setTimeout(()=>{
+        if(b.__g2nClickAt&&b.__g2nClickAt>=upAt-50)return; /* click v pořádku dorazil */
+        if(!b.isConnected)return;
+        b.__g2nSynthAt=Date.now();
+        try{ b.click(); }catch(_){ }
+      },250);
     },true);
     document.addEventListener('click',e=>{
       const b=e.target.closest&&e.target.closest('[data-tj-action]'); if(!b) return;
@@ -7363,6 +7379,9 @@ body.family-view .g2n-nb-tab,body.family-view .g2n-nb-panel{display:none!importa
 /* v129: jantarová varianta pro ukončení živé cesty; rozměry a chování přebírá od zeleného startu. */
 .tj-dash-start-btn.tj-dash-end-btn{border-color:#ffcf6e!important;background:linear-gradient(135deg,#e8a23c,#c07a17)!important;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset,0 6px 14px rgba(154,101,20,.30)!important}
 body.family-view [data-tj-action="end"]{display:none!important}
+/* v131: detail záznamu – tři stejně velké akce v jedné řádce, mazání červeně. */
+.tj-form-actions.tj-form-actions-three{grid-template-columns:1fr 1fr 1fr}
+.tj-form-actions .tj-danger{border-color:#ff9d9d!important;background:linear-gradient(135deg,#a03636,#7c2020)!important;color:#ffecec!important}
 @media(max-width:420px){.audit-dash-actions{gap:7px}}
 </style>
 
