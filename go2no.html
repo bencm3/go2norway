@@ -3,6 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
+<!-- go2no v140: do tisku přibyla i grafická část Přehledů (kategorie, denní útraty, denně ujeto, stav cílů a spotřeba mezi tankováními) ve světlé tiskové úpravě; graf spotřeby už nezobrazuje jen posledních osm úseků, ale všechny (na skutečných datech 23 místo 8). -->
 <!-- go2no v139: oprava tisku. Tisk už neprobíhá uvnitř živé stránky (tam se fixní vrstvy aplikace opakovaly na každé straně a vznikaly desítky opticky shodných stran), ale v samostatném dokumentu ve skrytém rámu s vlastními minimálními styly – výstup obsahuje výhradně papírový report a deník, tmavé grafy nikoli. Tisk vyvolaný z menu prohlížeče (Ctrl+P / Sdílet → Tisk) nově vytiskne totéž. -->
 <!-- go2no v138: Přehledy bez vysvětlujícího „i“ v záhlaví, tlačítka ⇩ Export CSV a 🖨 Tisk / PDF vedle sebe v jedné řádce; „Ostatní“ je vždy poslední řádek grafu kategorií (Potraviny nad ním); z dashboardu odstraněna stupnice pod ukazatelem (0 km i plán s procenty) a prázdný orámovaný pruh, který po zrušení kontroly zbyl dole; rozcestník Reporty má obě dlaždice vedle sebe. -->
 <!-- go2no v137: (1) opravena chyba priority operátorů v costStats – každá útrata s kategorií (jídlo, trajekt, parkovné, vstupy) se dosud načítala do Ubytování; graf kategorií nyní ukazuje čtyři skupiny: Ubytování, Doprava (palivo+trajekty+parkovné), Potraviny, Ostatní. (2) Filtr mapy: ⛽ tankování · ⛴ trajekty · 🛏 noclehy · 🍽 jídlo · ✓ příjezdy (útraty, poznámky, zastávky a hranice cesty se zobrazují vždy). (3) Z dashboardu odstraněn „Plán po dnech“ i kontrola itineráře; z nastavení spotřeba, dotankování a perimetr. (4) Spodní tlačítko je kontextové: Reporty → rozcestník, v deníku vede do Přehledů a naopak; horní záložky v obou pohledech zrušeny. -->
@@ -2626,7 +2627,10 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   function consumptionReportHTML(segments){
     if(!segments.length) return `<section class="tj-report-card wide"><h4>Spotřeba mezi tankováními do plna</h4><div class="tj-chart-empty">Čeká na druhé tankování označené „do plna“.</div></section>`;
     const max=Math.max(8,...segments.map(s=>s.cons));
-    return `<section class="tj-report-card wide"><h4>Spotřeba mezi tankováními do plna</h4><div class="tj-cons-list">${segments.slice(-8).map(s=>{ const label=reportDateFull(localDateKey(s.to.at)); const width=Math.max(4,Math.min(100,s.cons/max*100)); return `<div class="tj-cons-row"><span>${esc(label)} · ${esc(fmtN(s.distanceKm))} km · ${esc(fmtN(s.liters,1))} l</span><b>${esc(fmtN(s.cons,1))} l/100</b><div class="tj-cons-track"><i style="width:${width}%"></i></div></div>`; }).join('')}</div></section>`;
+    /* v140: dosud se vykreslovalo jen posledních osm úseků (slice(-8)), takže
+       drtivá většina tankování do plna se do grafu nedostala. Nyní se zobrazují
+       všechny úseky, které mají tankování do plna i stav tachometru. */
+    return `<section class="tj-report-card wide"><h4>Spotřeba mezi tankováními do plna</h4><div class="tj-cons-list">${segments.map(s=>{ const label=reportDateFull(localDateKey(s.to.at)); const width=Math.max(4,Math.min(100,s.cons/max*100)); return `<div class="tj-cons-row"><span>${esc(label)} · ${esc(fmtN(s.distanceKm))} km · ${esc(fmtN(s.liters,1))} l</span><b>${esc(fmtN(s.cons,1))} l/100</b><div class="tj-cons-track"><i style="width:${width}%"></i></div></div>`; }).join('')}</div></section>`;
   }
   function targetReportHTML(x){
     const pending=Math.max(0,x.plan.totalTargets-x.plan.visited-x.plan.skipped);
@@ -2753,6 +2757,17 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
      a deník; tmavé grafy z Přehledů se do tisku nedostanou. */
   function printSheetDocument(){
     const x=liveStats();
+    /* v140: do tisku patří i grafická část Přehledů až po spotřebu mezi
+       tankováními včetně. Komponenty jsou navržené pro tmavé rozhraní, proto je
+       tiskový dokument překrývá světlou variantou (bílé karty, tmavý text,
+       tiskové barvy pruhů a sloupců). */
+    const rows=dailyReportRows(x.j), catRows=categoryReportRows(x.costs);
+    const charts=`<h2 style="page-break-before:always">Grafy</h2>
+      <section class="tj-report-card"><h4>Náklady podle kategorií</h4>${categoryBarsHTML(catRows,x.costs.total)}</section>
+      ${simpleBarChartHTML(rows,'cost','Denní útraty','Každý sloupec odpovídá součtu nákladů daného dne.','Kč','cost')}
+      ${simpleBarChartHTML(rows,'km','Denně ujeto','Vychází z rozdílu tachometru proti poslednímu známému stavu.','km','km')}
+      ${targetReportHTML(x)}
+      ${consumptionReportHTML(x.fuel.segments)}`;
     const css=`@page{margin:12mm}
       *{box-sizing:border-box}
       body{margin:0;background:#fff;color:#14171c;font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
@@ -2765,8 +2780,26 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       tr{page-break-inside:avoid}
       tr.total td{font-weight:800;border-top:2px solid #b9b09a;border-bottom:none}
       .muted{color:#6f675a;font-size:11px;margin:6px 0 0}
-      .sheet{padding:0}`;
-    return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>go2no · zpráva z cesty</title><style>${css}</style></head><body><div class="sheet"><h1>go2no · zpráva z cesty</h1>${tripPaperReportHTML(x)}<h2 style="page-break-before:always">Cestovní deník</h2>${printDiaryHTML(x.j)}</div></body></html>`;
+      .sheet{padding:0}
+      h4{font-size:12.5px;margin:0 0 7px;color:#14171c}
+      .tj-report-card{border:1px solid #cfc9ba;border-radius:8px;background:#fff;padding:9px;margin:9px 0;page-break-inside:avoid}
+      .tj-chart svg{display:block;width:100%;height:auto}
+      .tj-chart-gridline{stroke:#d5d0c4;stroke-width:1;stroke-dasharray:3 4}
+      .tj-chart-axis{stroke:#9a9384;stroke-width:1}
+      .tj-chart-bar{fill:#2f6fb8}.tj-chart-bar.alt{fill:#2f8a5b}
+      .tj-chart-label{fill:#57514a;font-size:9px}.tj-chart-value{fill:#14171c;font-size:9px;font-weight:700}
+      .tj-chart-empty{border:1px dashed #cfc9ba;border-radius:8px;color:#6f675a;padding:10px;text-align:center;font-size:11px}
+      .tj-cat-list,.tj-cons-list{display:grid;gap:7px}
+      .tj-cat-row,.tj-cons-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;page-break-inside:avoid}
+      .tj-cat-row span,.tj-cons-row span{font-size:11px;color:#3c3730}
+      .tj-cat-row b,.tj-cons-row b{font-size:11px;color:#14171c;white-space:nowrap}
+      .tj-cat-track,.tj-cons-track{grid-column:1/-1;height:6px;border-radius:99px;background:#e7e2d6;overflow:hidden}
+      .tj-cat-track i{display:block;height:100%;background:#2f6fb8}
+      .tj-cons-track i{display:block;height:100%;background:#2f8a5b}
+      .tj-report-targets{display:flex;gap:6px;flex-wrap:wrap}
+      .tj-report-targets span{border:1px solid #cfc9ba;border-radius:99px;padding:4px 8px;font-size:11px;color:#3c3730}
+      .tj-report-card p{margin:0;font-size:11px;color:#6f675a}`;
+    return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>go2no · zpráva z cesty</title><style>${css}</style></head><body><div class="sheet"><h1>go2no · zpráva z cesty</h1>${tripPaperReportHTML(x)}${charts}<h2 style="page-break-before:always">Cestovní deník</h2>${printDiaryHTML(x.j)}</div></body></html>`;
   }
   function printTripReport(){
     let html;
