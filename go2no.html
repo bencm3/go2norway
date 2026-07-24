@@ -3,6 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
+<!-- go2no v130: němé klepnutí na Zahájit/Ukončit cestu v roletě. Start/konec nově reagují už na pointerup (nezávisle na syntéze click události), proti dvojímu otevření chrání časové razítko; a dokud cesta běží, nabízí tlačítko Ukončit cestu také deník, jehož ovládání funguje spolehlivě. -->
 <!-- go2no v129: záznam „Konec cesty“. Kontextové tlačítko dashboardu (Zahájit → Ukončit → souhrn), formulář s koncovým stavem tachometru, řádek v deníku, cílová vlajka 🏁 v mapě; procenta průběhu se zobrazují reálně i přes 100 % plánu. Konec je běžný záznam type:'end' – merge, synchronizace i exporty beze změny struktury. -->
 <!-- go2no v128: oprava živé cesty po návratu z Norska. (1) Editace záznamu už nikdy automaticky nepřepíše uloženou GPS aktuální polohou; obnova jen tlačítkem ⌖. (2) Poloha/kotva se řadí podle času události, ne času editace. (3) Záznamy „cíl vynechán / vrácen“ negenerují řádek deníku, bod trasy ani symbol mapy. (4) Zelené tlačítko Zahájit cestu má záložní přímý posluchač a start lze doplnit i zpětně z deníku. -->
 <!-- go2no v126: každý praktický odkaz nyní nejprve otevírá vysvětlující spodní kartu; externí stránka se otevře až samostatným tlačítkem. -->
@@ -1684,6 +1685,8 @@ const EMBED_CFG={"cons":6.1,"refuel":20,"refuelMode":"manual","geoRadiusKm":100,
     if(start&&!start.__g2nDirectStart){
       start.__g2nDirectStart=true;
       start.onclick=function(ev){ try{ev.preventDefault();}catch(_){}
+        if(Date.now()<(window.__g2nBoundaryTapAt||0))return;
+        window.__g2nBoundaryTapAt=Date.now()+800;
         const tj=window.go2noTripJournal, act=this&&this.dataset?this.dataset.tjAction:'start';
         if(act==='end'&&tj&&typeof tj.openEndForm==='function') tj.openEndForm();
         else if(tj&&typeof tj.openStartForm==='function') tj.openStartForm();
@@ -2504,7 +2507,11 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
        Je to záložní cesta nezávislá na zeleném tlačítku dashboardu; formulář dovoluje
        zadat datum, čas i stav tachometru zpětně. */
     const startMissing=(!familyView&&!journalStart(j))?`<div class="tj-report-note"><strong>Cesta nemá uložený začátek.</strong> Bez něj se nepočítají ujeté kilometry ani ukazatel průběhu. <button type="button" data-tj-action="start" style="display:block;margin-top:8px">Doplnit začátek cesty</button></div>`:'';
-    openJournalModal('Cestovní deník',`<article class="tj-journal-paper">${journalPaperNav()}${startMissing}${readOnly}${list}</article>`,'journal');
+    /* v130: zaručená cesta k ukončení. Dokud běží živá cesta, deník nabídne
+       tlačítko Ukončit cestu i zde – deníkové ovládání funguje nezávisle na
+       dashboardové roletě, kde se klepnutí na některých telefonech ztrácí. */
+    const endPending=(!familyView&&journalStart(j)&&!journalEnd(j))?`<div class="tj-report-note"><strong>Cesta stále běží.</strong> Až budeš doma, ulož koncový stav tachometru a datum návratu. <button type="button" data-tj-action="end" style="display:block;margin-top:8px">Ukončit cestu</button></div>`:'';
+    openJournalModal('Cestovní deník',`<article class="tj-journal-paper">${journalPaperNav()}${startMissing}${endPending}${readOnly}${list}</article>`,'journal');
   }
 
   function reportDateLabel(key){ try{return new Date(key+'T12:00:00').toLocaleDateString('cs-CZ',{day:'numeric',month:'numeric'});}catch(e){return key;} }
@@ -3529,6 +3536,26 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
 
 
   function installDelegatedEvents(){
+    /* v130: klepnutí na Zahájit/Ukončit cestu se na některých telefonech v roletě
+       dashboardu nikdy nepřeloží na click (na cestě zůstalo tlačítko němé).
+       Pointer události ale doručeny jsou – proto tato dvojice posluchačů otevře
+       formulář už na pointerup po nehybném klepnutí. Click handler níže pak díky
+       časovému razítku __g2nBoundaryTapAt neproběhne podruhé. */
+    let boundaryPtr=null;
+    document.addEventListener('pointerdown',e=>{
+      const b=e.target.closest&&e.target.closest('[data-tj-action="start"],[data-tj-action="end"]');
+      boundaryPtr=b?{b:b,x:e.clientX,y:e.clientY,t:Date.now()}:null;
+    },true);
+    document.addEventListener('pointerup',e=>{
+      if(!boundaryPtr)return; const p=boundaryPtr; boundaryPtr=null;
+      const b=e.target.closest&&e.target.closest('[data-tj-action="start"],[data-tj-action="end"]');
+      if(!b||b!==p.b)return;
+      if(Math.abs(e.clientX-p.x)+Math.abs(e.clientY-p.y)>14||Date.now()-p.t>700)return;
+      if(familyView)return;
+      if(Date.now()<(window.__g2nBoundaryTapAt||0))return;
+      window.__g2nBoundaryTapAt=Date.now()+800;
+      try{ if(b.dataset.tjAction==='end')openEndForm(); else openStartForm(); }catch(_){ }
+    },true);
     document.addEventListener('click',e=>{
       const b=e.target.closest&&e.target.closest('[data-tj-action]'); if(!b) return;
       const act=b.dataset.tjAction; if(!act)return;
@@ -3537,8 +3564,14 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       if(familyView && !['open-journal','open-report','entry-detail','view-photo','open-highlight'].includes(act)){ toast('Rodinný náhled je pouze ke čtení.'); return; }
       if(act==='open-journal') renderJournal();
       else if(act==='open-report') renderTripReport();
-      else if(act==='start') openStartForm();
-      else if(act==='end') openEndForm();
+      else if(act==='start'||act==='end'){
+        /* v130: start/konec obsluhuje primárně pointerup (viz níže) – klik zde
+           doběhne jen jako pojistka, časové razítko brání dvojímu otevření. */
+        if(Date.now()>=(window.__g2nBoundaryTapAt||0)){
+          window.__g2nBoundaryTapAt=Date.now()+800;
+          if(act==='end')openEndForm(); else openStartForm();
+        }
+      }
       else if(act==='odometer') { if(!journalStart(ensureJournal())) openStartForm(); else openOdometerForm(); }
       else if(act==='fuel') openFuelForm();
       else if(act==='pause') openPauseForm();
