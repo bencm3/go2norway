@@ -3,6 +3,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
+<!-- go2no v139: oprava tisku. Tisk už neprobíhá uvnitř živé stránky (tam se fixní vrstvy aplikace opakovaly na každé straně a vznikaly desítky opticky shodných stran), ale v samostatném dokumentu ve skrytém rámu s vlastními minimálními styly – výstup obsahuje výhradně papírový report a deník, tmavé grafy nikoli. Tisk vyvolaný z menu prohlížeče (Ctrl+P / Sdílet → Tisk) nově vytiskne totéž. -->
+<!-- go2no v138: Přehledy bez vysvětlujícího „i“ v záhlaví, tlačítka ⇩ Export CSV a 🖨 Tisk / PDF vedle sebe v jedné řádce; „Ostatní“ je vždy poslední řádek grafu kategorií (Potraviny nad ním); z dashboardu odstraněna stupnice pod ukazatelem (0 km i plán s procenty) a prázdný orámovaný pruh, který po zrušení kontroly zbyl dole; rozcestník Reporty má obě dlaždice vedle sebe. -->
 <!-- go2no v137: (1) opravena chyba priority operátorů v costStats – každá útrata s kategorií (jídlo, trajekt, parkovné, vstupy) se dosud načítala do Ubytování; graf kategorií nyní ukazuje čtyři skupiny: Ubytování, Doprava (palivo+trajekty+parkovné), Potraviny, Ostatní. (2) Filtr mapy: ⛽ tankování · ⛴ trajekty · 🛏 noclehy · 🍽 jídlo · ✓ příjezdy (útraty, poznámky, zastávky a hranice cesty se zobrazují vždy). (3) Z dashboardu odstraněn „Plán po dnech“ i kontrola itineráře; z nastavení spotřeba, dotankování a perimetr. (4) Spodní tlačítko je kontextové: Reporty → rozcestník, v deníku vede do Přehledů a naopak; horní záložky v obou pohledech zrušeny. -->
 <!-- go2no v136: popisky v liště mapy bez titěrných mikrosymbolů – jen text verzálkami (ITINERÁŘ · TOP60 · PLÁN · ZÁZNAMY · STOPA · FILTR). -->
 <!-- go2no v135: filtr typů záznamů v mapě už nezabírá vlastní řádku – ovládá ho jedno tlačítko „⛃ Filtr“ ve stávající liště vrstev a rozbaluje se jako malý překryvný panel nad mapou (klepnutím do mapy se sbalí). -->
@@ -1680,6 +1682,10 @@ const EMBED_CFG={"cons":6.1,"refuel":20,"refuelMode":"manual","geoRadiusKm":100,
     const box=host.querySelector('.audit-dashbox');
     const actions=box&&box.querySelector('.audit-dash-actions');
     const start=host.querySelector('.tj-dash-start-btn');
+    /* v138: po odstranění kontroly itineráře zůstával v dolní části dashboardu
+       prázdný orámovaný pruh, pokud se do něj nemělo co přesunout (ukončená
+       cesta = žádné tlačítko Zahájit/Ukončit). V takovém případě rámeček zmizí. */
+    if(!start&&box){ box.remove(); return; }
     // Před startem: zelené tlačítko vlevo, původní Kontrola vpravo. Po startu
     // se zelené tlačítko již nevyrenderuje a zůstane jen původní Kontrola.
     if(start&&actions) actions.insertBefore(start,actions.firstChild);
@@ -1850,7 +1856,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
 
 /* v46 až v48 – Přehled cesty, grafy, export, pauzy a mapa */
 .tj-viewtabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:0 0 11px}.tj-viewtabs button{margin:0!important;min-height:39px;padding:8px 10px!important;border:1px solid var(--tj-line)!important;border-radius:10px!important;background:#101b2a!important;color:#b8c9df!important;font:800 12px/1.1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif!important;cursor:pointer}.tj-viewtabs button.active{background:linear-gradient(135deg,#246fc3,#1d5ca4)!important;border-color:#6aaeff!important;color:#fff!important;box-shadow:0 0 0 1px #ffffff12 inset}.tj-exportbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 12px}.tj-exportbar button{margin:0!important;min-height:44px;padding:8px 10px!important;border-radius:11px!important;font-size:12px!important}.tj-report-note{border:1px solid #31445f;border-radius:12px;background:#0e1724;color:#a9bbcf;padding:9px 10px;font-size:11px;line-height:1.35;margin:0 0 11px}.tj-report-note strong{color:#dceaff}.tj-report-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:10px 0 14px}.tj-report-card{border:1px solid var(--tj-line);border-radius:14px;background:linear-gradient(135deg,#111d2e,#0c1521);padding:10px;min-width:0}.tj-report-card.wide{grid-column:1/-1}.tj-report-card h4{margin:0 0 9px;color:#e8f1fe;font-size:13px;line-height:1.18}.tj-report-card p{margin:0;color:#9fb1c6;font-size:11px;line-height:1.35}.tj-chart{position:relative}.tj-chart svg{display:block;width:100%;height:auto;overflow:visible}.tj-chart-gridline{stroke:#37506f;stroke-width:1;stroke-dasharray:3 4}.tj-chart-axis{stroke:#4f6685;stroke-width:1}.tj-chart-bar{fill:#3f8feb}.tj-chart-bar.alt{fill:#5fcb94}.tj-chart-label{fill:#aabbd0;font:10px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}.tj-chart-value{fill:#dceaff;font:10px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-weight:800}.tj-chart-empty{display:flex;align-items:center;justify-content:center;min-height:124px;border:1px dashed #405570;border-radius:11px;color:#96aac0;text-align:center;padding:12px;font-size:11px;line-height:1.35}.tj-cat-list{display:grid;gap:8px}.tj-cat-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center}.tj-cat-row span{color:#cfdbeb;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tj-cat-row b{color:#dceaff;font-size:11px;white-space:nowrap}.tj-cat-track{grid-column:1/-1;height:7px;border-radius:999px;background:#172536;overflow:hidden}.tj-cat-track i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#1f6feb,#70b7ff)}.tj-cons-list{display:grid;gap:8px}.tj-cons-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center}.tj-cons-row span{color:#aebed1;font-size:11px;line-height:1.2}.tj-cons-row b{color:#84dbaa;font-size:12px;white-space:nowrap}.tj-cons-track{grid-column:1/-1;height:7px;border-radius:999px;background:#173025;overflow:hidden}.tj-cons-track i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#279d60,#85dbab)}.tj-report-days{display:grid;gap:9px}.tj-report-day{border:1px solid var(--tj-line);border-radius:13px;background:#0d1622;overflow:hidden}.tj-report-day-head{padding:9px 10px 8px;background:#111d2e;border-bottom:1px solid #2e405a}.tj-report-day-head b{display:block;color:#e8f2ff;font-size:12px}.tj-report-day-head span{display:block;color:#9fb1c6;font-size:11px;line-height:1.3;margin-top:3px}.tj-report-day-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}.tj-report-day-metric{padding:8px 8px 9px;border-right:1px solid #263850;min-width:0}.tj-report-day-metric:last-child{border-right:0}.tj-report-day-metric span{display:block;color:#92a6be;font-size:9.5px;line-height:1;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tj-report-day-metric b{display:block;color:#dceaff;font-size:12px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tj-report-day-metric.good b{color:#84dbaa}.tj-report-targets{display:flex;gap:7px;flex-wrap:wrap}.tj-report-targets span{border:1px solid #364a66;border-radius:999px;padding:6px 8px;color:#b8c9dc;font-size:11px;background:#101a28}.tj-report-targets span b{color:#e5f1ff}.tj-entry-tools{flex-wrap:wrap}.tj-entry-tools button.tj-detail-btn{color:#d9ebff;border-color:#416993!important;background:#14223a!important}.tj-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}.tj-detail-item{border:1px solid #32445f;border-radius:10px;background:#0e1724;padding:8px 9px;min-width:0}.tj-detail-item span{display:block;color:#9fb1c5;font-size:10px;line-height:1;margin-bottom:4px}.tj-detail-item b,.tj-detail-item a{display:block;color:#e5effc;font-size:12px;line-height:1.24;overflow-wrap:anywhere}.tj-detail-item a{color:#9fd0ff;text-decoration:none}.tj-detail-note{border:1px solid #32445f;border-radius:10px;background:#0e1724;color:#d3deec;padding:9px 10px;font-size:12px;line-height:1.4;white-space:pre-wrap;margin:9px 0}.tj-gps-edit{margin-top:8px}.tj-gps-edit .tj-field input{font-variant-numeric:tabular-nums}
-@media(max-width:620px){.tj-report-grid{grid-template-columns:1fr}.tj-report-card.wide{grid-column:auto}.tj-report-day-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.tj-report-day-metric:nth-child(2){border-right:0}.tj-report-day-metric:nth-child(-n+2){border-bottom:1px solid #263850}.tj-exportbar{grid-template-columns:1fr}.tj-detail-grid{grid-template-columns:1fr}.tj-viewtabs button{font-size:11.5px!important}}
+@media(max-width:620px){.tj-report-grid{grid-template-columns:1fr}.tj-report-card.wide{grid-column:auto}.tj-report-day-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.tj-report-day-metric:nth-child(2){border-right:0}.tj-report-day-metric:nth-child(-n+2){border-bottom:1px solid #263850}.tj-exportbar{grid-template-columns:1fr 1fr}.tj-detail-grid{grid-template-columns:1fr}.tj-viewtabs button{font-size:11.5px!important}}
 
 
 /* v47–v48 – Pauzy, lokální fotografie, dynamická mapa a oprava markerů */
@@ -1953,6 +1959,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     installFab();
     injectSettings();
     installFamilyRefresh();
+    try{ installBrowserPrintBridge(); }catch(_){ }
     window.setTimeout(g2nBackfillNorsko2026,900);
     try{ render(); }catch(e){ console.error('Živá cesta – první vykreslení:',e); }
   }
@@ -2263,7 +2270,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const x=liveStats(), startKm=Number(x.st&&x.st.odometerKm), hasStart=Number.isFinite(startKm)&&startKm>0, fuel=x.fuel, lastEvent=x.entries.at(-1), p=Math.round(x.progress*10)/10;
     /* v129: popisek procent ukazuje skutečný poměr i přes 100 % (kilometry mimo
        plán, objížďky); grafická šířka pruhu zůstává zastropovaná na 100 %. */
-    const pReal=x.distance!=null&&x.plan.adjustedKm>0?Math.round(x.distance/x.plan.adjustedKm*1000)/10:p;
+    const pReal=x.distance!=null&&x.plan.adjustedKm>0?Math.round(x.distance/x.plan.adjustedKm*1000)/10:p; void pReal;
     /* v137: „Plán po dnech“ z dashboardu odstraněn – podrobné vyhodnocení
        cesty se přesunulo do papírových reportů, kde je čitelnější. */
     const timeline='';
@@ -2298,7 +2305,8 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       ${topLine}
       <div class="dash-main"><div class="dash-km"><b>${esc(realText)}</b><span>skutečně od startu</span></div>${endRec?`<div class="dash-rem"><b>${esc(exportDateParts(endRec.at).date)}</b><span>cesta ukončena</span></div>`:`<div class="dash-rem"><b>${esc(remainText)}</b><span>zbývá podle plánu</span></div>`}</div>
       <div class="dash-progress" title="Skutečně ujeto ${esc(realText)} vůči upravenému plánu ${fmtN(x.plan.adjustedKm)} km"><span style="width:${p}%"></span><i style="left:${p}%"></i></div>
-      <div class="dash-scale"><span>0 km</span><span>${fmtN(x.plan.adjustedKm)} km · ${fmtN(pReal,1)} %</span></div>
+      <!-- v138: stupnice pod ukazatelem odstraněna (0 km vlevo i plán s procenty
+           vpravo). Výpočet zůstává, jen se nezobrazuje – linka sama stačí. -->
       <div class="tj-metrics dash-metrics">
         ${dashMetric('Palivo',fuelText,fuel.fuel.length+'× tankování','')}
         ${dashMetric('Spotřeba',cons,fuel.lastSegment?'poslední plno → plno':'přesná po 2× plno',fuel.overall!=null?'good':'warn')}
@@ -2590,7 +2598,11 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       {key:'food',label:'Potraviny',value:Number(m.food)||0},
       {key:'other',label:'Ostatní',value:(Number(m.other)||0)+(Number(m.admission)||0)}
     ];
-    return groups.filter(x=>x.value>0).sort((a,b)=>b.value-a.value);
+    /* v138: „Ostatní“ je sběrný řádek a zůstává vždy dole, i kdyby byl vyšší
+       než Potraviny; ostatní skupiny se řadí sestupně podle částky. */
+    const rest=groups.filter(x=>x.key!=='other'&&x.value>0).sort((a,b)=>b.value-a.value);
+    const other=groups.filter(x=>x.key==='other'&&x.value>0);
+    return rest.concat(other);
   }
   function categoryBarsHTML(rows,total){
     if(!rows.length) return `<div class="tj-chart-empty">Zatím nejsou zapsané žádné náklady.</div>`;
@@ -2703,17 +2715,83 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   /* v133: tisk / uložení do PDF. Sestaví skrytý tiskový arch (report + deník),
      vyvolá systémový tisk (v Androidu volba „Uložit jako PDF“) a po tisku
      po sobě uklidí. Žádné nové okno – spolehlivé i v instalované PWA. */
-  function printTripReport(){
+  /* v139: tisk vyvolaný z menu prohlížeče (Ctrl+P, Sdílet → Tisk) nyní vytiskne
+     tentýž papírový report a deník jako tlačítko Tisk / PDF. Bez toho se tiskla
+     živá stránka aplikace i s fixními vrstvami, které se opakují na každé straně.
+     Sestavený arch se po tisku uklidí; pokud si tisk vyžádalo naše tlačítko,
+     je arch už připravený a tento posluchač do něj nezasahuje. */
+  function installBrowserPrintBridge(){
+    if(window.__g2nPrintBridge)return; window.__g2nPrintBridge=true;
+    window.addEventListener('beforeprint',()=>{
+      try{
+        if(document.getElementById('tjPrintSheet'))return;
+        if(document.getElementById('tjPrintFrame'))return; /* tiskne se náš rám */
+        buildPrintSheet(); document.body.classList.add('g2n-printing');
+        window.__g2nAutoPrintSheet=true;
+      }catch(_){ }
+    });
+    window.addEventListener('afterprint',()=>{
+      if(!window.__g2nAutoPrintSheet)return;
+      window.__g2nAutoPrintSheet=false;
+      document.body.classList.remove('g2n-printing');
+      const s=document.getElementById('tjPrintSheet'); if(s)s.remove();
+    });
+  }
+  function buildPrintSheet(){
     const x=liveStats();
     const old=document.getElementById('tjPrintSheet'); if(old)old.remove();
     const sheet=document.createElement('div'); sheet.id='tjPrintSheet';
     sheet.innerHTML=`<h1>go2no · zpráva z cesty</h1><div class="tj-report-paper">${tripPaperReportHTML(x)}</div><h1 style="margin-top:14px">Cestovní deník</h1><div class="tj-report-paper">${printDiaryHTML(x.j)}</div>`;
     document.body.appendChild(sheet);
-    document.body.classList.add('g2n-printing');
-    const done=()=>{ document.body.classList.remove('g2n-printing'); const s=document.getElementById('tjPrintSheet'); if(s)s.remove(); window.removeEventListener('afterprint',done); };
-    window.addEventListener('afterprint',done);
-    window.setTimeout(()=>{ try{ window.print(); }catch(_){ done(); toast('Tisk se nepodařilo otevřít.'); } },60);
-    window.setTimeout(done,90000);
+    return sheet;
+  }
+  /* v139: tisk běží v samostatném dokumentu uvnitř skrytého rámu, ne uvnitř živé
+     stránky. Dosavadní postup schovával sourozence archu přes @media print, jenže
+     aplikace má devatenáct fixně umístěných vrstev a vlastní stránkovou geometrii –
+     tiskové jádro pak dokázalo vygenerovat desítky opticky shodných stran. Rám má
+     vlastní minimální styly, takže výstup obsahuje výhradně papírový report
+     a deník; tmavé grafy z Přehledů se do tisku nedostanou. */
+  function printSheetDocument(){
+    const x=liveStats();
+    const css=`@page{margin:12mm}
+      *{box-sizing:border-box}
+      body{margin:0;background:#fff;color:#14171c;font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+      h1{font-size:18px;margin:0 0 8px}
+      h2{font-size:15px;margin:16px 0 6px;page-break-after:avoid}
+      h3{font-size:13.5px;margin:12px 0 5px;padding-bottom:3px;border-bottom:2px solid #d8d2c2;page-break-after:avoid}
+      table{width:100%;border-collapse:collapse;font-size:12px;page-break-inside:auto}
+      td{padding:4px 6px;border-bottom:1px solid #e3dccb;vertical-align:top;text-align:left}
+      td:last-child{text-align:right;white-space:nowrap}
+      tr{page-break-inside:avoid}
+      tr.total td{font-weight:800;border-top:2px solid #b9b09a;border-bottom:none}
+      .muted{color:#6f675a;font-size:11px;margin:6px 0 0}
+      .sheet{padding:0}`;
+    return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>go2no · zpráva z cesty</title><style>${css}</style></head><body><div class="sheet"><h1>go2no · zpráva z cesty</h1>${tripPaperReportHTML(x)}<h2 style="page-break-before:always">Cestovní deník</h2>${printDiaryHTML(x.j)}</div></body></html>`;
+  }
+  function printTripReport(){
+    let html;
+    try{ html=printSheetDocument(); }catch(e){ toast('Report se nepodařilo sestavit.'); return; }
+    const old=document.getElementById('tjPrintFrame'); if(old)old.remove();
+    const frame=document.createElement('iframe');
+    frame.id='tjPrintFrame';
+    frame.setAttribute('aria-hidden','true');
+    frame.style.cssText='position:fixed;right:0;bottom:0;width:1px;height:1px;opacity:0;border:0;pointer-events:none';
+    let cleaned=false;
+    const cleanup=()=>{ if(cleaned)return; cleaned=true; window.setTimeout(()=>{ const f=document.getElementById('tjPrintFrame'); if(f)f.remove(); },400); };
+    frame.onload=()=>{
+      try{
+        const win=frame.contentWindow;
+        try{ win.focus(); }catch(_){ }
+        try{ win.addEventListener('afterprint',cleanup); }catch(_){ }
+        win.print();
+        window.setTimeout(cleanup,60000);
+      }catch(e){ cleanup(); toast('Tisk se nepodařilo otevřít.'); }
+    };
+    document.body.appendChild(frame);
+    const doc=frame.contentDocument||(frame.contentWindow&&frame.contentWindow.document);
+    if(doc){ doc.open(); doc.write(html); doc.close(); if(!frame.onload)cleanup(); window.setTimeout(()=>{ if(!cleaned&&frame.contentWindow&&!frame.__printed){ frame.__printed=true; try{ frame.contentWindow.focus(); frame.contentWindow.print(); }catch(_){ } } },120); }
+    else { frame.srcdoc=html; }
+    toast('Připravuji tisk…');
   }
 
   /* v137: rozcestník po klepnutí na spodní tlačítko Reporty. */
@@ -2725,7 +2803,9 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const x=liveStats(), j=x.j, rows=dailyReportRows(j), costs=x.costs, catRows=categoryReportRows(costs), daysWithCost=rows.filter(r=>r.cost>0).length, costPerKm=x.distance&&x.distance>0?costs.total/x.distance:null;
     const tripDays=rows.length, avgDaily=daysWithCost?costs.total/daysWithCost:null;
     const readOnly=familyView?`<p class="tj-readonly-note">Rodinný náhled: tento přehled je pouze ke čtení. Online stav se obnovuje automaticky.</p>`:'';
-    const exportBlock=familyView?'':`<div class="tj-exportbar"><button class="primary" data-tj-action="export-csv">⇩ Export CSV pro Excel</button><button data-tj-action="print-report">🖨 Tisk / PDF</button></div>${infoTip('<b>CSV</b> obsahuje všechny zápisy v UTF‑8 se středníkem; český Excel jej běžně otevře přímo. <b>Tisk / PDF</b> otevře systémový tisk s papírovým reportem i deníkem – v Androidu zvol „Uložit jako PDF“.')}`;
+    /* v138: bez vysvětlujícího „i“ (openJournalModal jej stěhuje do záhlaví) a bez
+       dodatku „pro Excel“; obě tlačítka drží jednu řádku vedle sebe. */
+    const exportBlock=familyView?'':`<div class="tj-exportbar"><button class="primary" data-tj-action="export-csv">⇩ Export CSV</button><button data-tj-action="print-report">🖨 Tisk / PDF</button></div>`;
     /* v137: horní záložky Deník/Přehledy ani vysvětlující „i“ se už nezobrazují –
        přepínání obstarává spodní kontextové tlačítko a obsah je zřejmý. */
     openJournalModal('Přehledy cesty',`${readOnly}
@@ -7659,9 +7739,9 @@ body.family-view [data-tj-action="end"]{display:none!important}
 .tj-map-typepop button{width:34px;height:34px;padding:0;border:1px solid #3a4a60;border-radius:9px;background:#141e2c;color:#cfe2f7;font-size:15px;opacity:.42;cursor:pointer}
 .tj-map-typepop button.active{opacity:1;border-color:#69afff;background:#1c2f47}
 /* v137: rozcestník Reporty – dvě velké dlaždice. */
-.tj-reports-menu{display:grid;gap:10px;padding:4px 0}
-.tj-reports-menu button{display:grid;grid-template-columns:44px 1fr;grid-template-rows:auto auto;gap:2px 12px;align-items:center;padding:14px;border:1px solid #39516f;border-radius:14px;background:#162335;color:#eaf2fb;text-align:left;cursor:pointer}
-.tj-reports-menu button b{grid-row:1/3;font-size:26px;text-align:center}
+.tj-reports-menu{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:4px 0}
+.tj-reports-menu button{display:grid;grid-template-columns:1fr;grid-template-rows:auto auto auto;gap:3px;justify-items:center;text-align:center;padding:16px 10px;border:1px solid #39516f;border-radius:14px;background:#162335;color:#eaf2fb;cursor:pointer}
+.tj-reports-menu button b{font-size:26px}
 .tj-reports-menu button span{font-size:16px;font-weight:800}
 .tj-reports-menu button small{color:#9db2cb;font-size:12px}
 /* v133: papírový výdajový report a tiskový arch. */
@@ -7675,6 +7755,14 @@ body.family-view [data-tj-action="end"]{display:none!important}
 .tj-paper-table tr.total td{font-weight:800;border-top:2px solid #b9b09a;border-bottom:none}
 #tjPrintSheet{display:none}
 @media print{
+ /* v139: tisk vyvolaný přímo z prohlížeče (mimo tlačítko Tisk / PDF). Plovoucí
+    a fixně umístěné vrstvy – dashboardová roleta, horní lišta, modály, spodní
+    tlačítko – se při stránkování opakují na KAŽDÉ straně a překryjí obsah, což
+    vede k desítkám vizuálně shodných stran. Pro tisk je proto skryjeme. */
+ body:not(.g2n-printing) .roleta,body:not(.g2n-printing) .roleta-bg,body:not(.g2n-printing) .tj-fab,
+ body:not(.g2n-printing) #tjModal,body:not(.g2n-printing) .top,body:not(.g2n-printing) .modal,
+ body:not(.g2n-printing) .g2n-side-drawer-handle,body:not(.g2n-printing) .sheet{display:none!important}
+
  body.g2n-printing>*:not(#tjPrintSheet){display:none!important}
  body.g2n-printing{background:#fff!important}
  body.g2n-printing #tjPrintSheet{display:block!important;background:#fff;color:#111;font:12px/1.45 system-ui,-apple-system,sans-serif;padding:0;margin:0}
