@@ -3,6 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
+<!-- go2no v142: sjednocen obsah tisku. Existovaly dvě skladby – rám z tlačítka (s grafy) a arch pro tisk vyvolaný prohlížečem (bez grafů); Android v některých případech tiskne nadřazený dokument, takže vycházela ta chudší varianta. Nyní obě cesty staví obsah z jediné funkce (report + grafy + deník), arch má vlastní světlou tiskovou úpravu grafů a tisk z rámu se spouští právě jednou. -->
 <!-- go2no v141: pruhy v grafu spotřeby se vynášejí od základny 3 l/100 km místo od nuly, takže rozdíly mezi úseky jsou vizuálně čitelné (na skutečných datech rozpětí 39–89 % místo 68–100 %). -->
 <!-- go2no v140: do tisku přibyla i grafická část Přehledů (kategorie, denní útraty, denně ujeto, stav cílů a spotřeba mezi tankováními) ve světlé tiskové úpravě; graf spotřeby už nezobrazuje jen posledních osm úseků, ale všechny (na skutečných datech 23 místo 8). -->
 <!-- go2no v139: oprava tisku. Tisk už neprobíhá uvnitř živé stránky (tam se fixní vrstvy aplikace opakovaly na každé straně a vznikaly desítky opticky shodných stran), ale v samostatném dokumentu ve skrytém rámu s vlastními minimálními styly – výstup obsahuje výhradně papírový report a deník, tmavé grafy nikoli. Tisk vyvolaný z menu prohlížeče (Ctrl+P / Sdílet → Tisk) nově vytiskne totéž. -->
@@ -2746,11 +2747,25 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       const s=document.getElementById('tjPrintSheet'); if(s)s.remove();
     });
   }
+  /* v142: JEDINÝ zdroj tisknutelného obsahu pro obě cesty tisku. Dosud existovaly
+     dvě různé skladby – rám z tlačítka (s grafy) a arch pro tisk vyvolaný
+     prohlížečem (bez grafů). Android tiskne v některých případech nadřazený
+     dokument místo rámu, takže vycházela ta chudší varianta bez grafů. */
+  function printableBodyHTML(){
+    const x=liveStats(), rows=dailyReportRows(x.j), catRows=categoryReportRows(x.costs);
+    return `<h1>go2no · zpráva z cesty</h1>${tripPaperReportHTML(x)}
+      <h2 style="page-break-before:always">Grafy</h2>
+      <section class="tj-report-card"><h4>Náklady podle kategorií</h4>${categoryBarsHTML(catRows,x.costs.total)}</section>
+      ${simpleBarChartHTML(rows,'cost','Denní útraty','Každý sloupec odpovídá součtu nákladů daného dne.','Kč','cost')}
+      ${simpleBarChartHTML(rows,'km','Denně ujeto','Vychází z rozdílu tachometru proti poslednímu známému stavu.','km','km')}
+      ${targetReportHTML(x)}
+      ${consumptionReportHTML(x.fuel.segments)}
+      <h2 style="page-break-before:always">Cestovní deník</h2>${printDiaryHTML(x.j)}`;
+  }
   function buildPrintSheet(){
-    const x=liveStats();
     const old=document.getElementById('tjPrintSheet'); if(old)old.remove();
     const sheet=document.createElement('div'); sheet.id='tjPrintSheet';
-    sheet.innerHTML=`<h1>go2no · zpráva z cesty</h1><div class="tj-report-paper">${tripPaperReportHTML(x)}</div><h1 style="margin-top:14px">Cestovní deník</h1><div class="tj-report-paper">${printDiaryHTML(x.j)}</div>`;
+    sheet.innerHTML=printableBodyHTML();
     document.body.appendChild(sheet);
     return sheet;
   }
@@ -2761,18 +2776,10 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
      vlastní minimální styly, takže výstup obsahuje výhradně papírový report
      a deník; tmavé grafy z Přehledů se do tisku nedostanou. */
   function printSheetDocument(){
-    const x=liveStats();
     /* v140: do tisku patří i grafická část Přehledů až po spotřebu mezi
        tankováními včetně. Komponenty jsou navržené pro tmavé rozhraní, proto je
        tiskový dokument překrývá světlou variantou (bílé karty, tmavý text,
        tiskové barvy pruhů a sloupců). */
-    const rows=dailyReportRows(x.j), catRows=categoryReportRows(x.costs);
-    const charts=`<h2 style="page-break-before:always">Grafy</h2>
-      <section class="tj-report-card"><h4>Náklady podle kategorií</h4>${categoryBarsHTML(catRows,x.costs.total)}</section>
-      ${simpleBarChartHTML(rows,'cost','Denní útraty','Každý sloupec odpovídá součtu nákladů daného dne.','Kč','cost')}
-      ${simpleBarChartHTML(rows,'km','Denně ujeto','Vychází z rozdílu tachometru proti poslednímu známému stavu.','km','km')}
-      ${targetReportHTML(x)}
-      ${consumptionReportHTML(x.fuel.segments)}`;
     const css=`@page{margin:12mm}
       *{box-sizing:border-box}
       body{margin:0;background:#fff;color:#14171c;font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
@@ -2804,8 +2811,9 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       .tj-report-targets{display:flex;gap:6px;flex-wrap:wrap}
       .tj-report-targets span{border:1px solid #cfc9ba;border-radius:99px;padding:4px 8px;font-size:11px;color:#3c3730}
       .tj-report-card p{margin:0;font-size:11px;color:#6f675a}`;
-    return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>go2no · zpráva z cesty</title><style>${css}</style></head><body><div class="sheet"><h1>go2no · zpráva z cesty</h1>${tripPaperReportHTML(x)}${charts}<h2 style="page-break-before:always">Cestovní deník</h2>${printDiaryHTML(x.j)}</div></body></html>`;
+    return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>go2no · zpráva z cesty</title><style>${css}</style></head><body><div class="sheet">${printableBodyHTML()}</div></body></html>`;
   }
+
   function printTripReport(){
     let html;
     try{ html=printSheetDocument(); }catch(e){ toast('Report se nepodařilo sestavit.'); return; }
@@ -2816,18 +2824,15 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     frame.style.cssText='position:fixed;right:0;bottom:0;width:1px;height:1px;opacity:0;border:0;pointer-events:none';
     let cleaned=false;
     const cleanup=()=>{ if(cleaned)return; cleaned=true; window.setTimeout(()=>{ const f=document.getElementById('tjPrintFrame'); if(f)f.remove(); },400); };
-    frame.onload=()=>{
-      try{
-        const win=frame.contentWindow;
-        try{ win.focus(); }catch(_){ }
-        try{ win.addEventListener('afterprint',cleanup); }catch(_){ }
-        win.print();
-        window.setTimeout(cleanup,60000);
-      }catch(e){ cleanup(); toast('Tisk se nepodařilo otevřít.'); }
-    };
     document.body.appendChild(frame);
+    /* v142: tisk se z rámu spouští právě jednou (dřív mohl proběhnout i podruhé
+       z pojistného časovače a druhý pokus mohl skončit tiskem nadřazené stránky). */
+    const fire=()=>{ if(frame.__printed||cleaned)return; frame.__printed=true;
+      try{ const win=frame.contentWindow; try{ win.focus(); }catch(_){ } try{ win.addEventListener('afterprint',cleanup); }catch(_){ } win.print(); window.setTimeout(cleanup,60000); }
+      catch(e){ cleanup(); toast('Tisk se nepodařilo otevřít.'); } };
+    frame.onload=fire;
     const doc=frame.contentDocument||(frame.contentWindow&&frame.contentWindow.document);
-    if(doc){ doc.open(); doc.write(html); doc.close(); if(!frame.onload)cleanup(); window.setTimeout(()=>{ if(!cleaned&&frame.contentWindow&&!frame.__printed){ frame.__printed=true; try{ frame.contentWindow.focus(); frame.contentWindow.print(); }catch(_){ } } },120); }
+    if(doc){ doc.open(); doc.write(html); doc.close(); window.setTimeout(fire,150); }
     else { frame.srcdoc=html; }
     toast('Připravuji tisk…');
   }
@@ -7809,6 +7814,25 @@ body.family-view [data-tj-action="end"]{display:none!important}
  body.g2n-printing #tjPrintSheet h3{page-break-after:avoid}
  body.g2n-printing #tjPrintSheet table{page-break-inside:auto}
  body.g2n-printing #tjPrintSheet tr{page-break-inside:avoid}
+ /* v142: světlá tisková úprava grafických karet i pro arch tištěný uvnitř
+    stránky (tisk vyvolaný prohlížečem). Bez toho by se tiskly na tmavém pozadí. */
+ body.g2n-printing #tjPrintSheet h4{font-size:12.5px;margin:0 0 7px;color:#14171c}
+ body.g2n-printing #tjPrintSheet .tj-report-card{border:1px solid #cfc9ba;border-radius:8px;background:#fff!important;padding:9px;margin:9px 0;page-break-inside:avoid}
+ body.g2n-printing #tjPrintSheet .tj-chart svg{display:block;width:100%;height:auto}
+ body.g2n-printing #tjPrintSheet .tj-chart-gridline{stroke:#d5d0c4}
+ body.g2n-printing #tjPrintSheet .tj-chart-axis{stroke:#9a9384}
+ body.g2n-printing #tjPrintSheet .tj-chart-bar{fill:#2f6fb8}
+ body.g2n-printing #tjPrintSheet .tj-chart-bar.alt{fill:#2f8a5b}
+ body.g2n-printing #tjPrintSheet .tj-chart-label{fill:#57514a}
+ body.g2n-printing #tjPrintSheet .tj-chart-value{fill:#14171c}
+ body.g2n-printing #tjPrintSheet .tj-cat-row span,body.g2n-printing #tjPrintSheet .tj-cons-row span{color:#3c3730}
+ body.g2n-printing #tjPrintSheet .tj-cat-row b,body.g2n-printing #tjPrintSheet .tj-cons-row b{color:#14171c}
+ body.g2n-printing #tjPrintSheet .tj-cat-track,body.g2n-printing #tjPrintSheet .tj-cons-track{background:#e7e2d6}
+ body.g2n-printing #tjPrintSheet .tj-cat-track i{background:#2f6fb8}
+ body.g2n-printing #tjPrintSheet .tj-cons-track i{background:#2f8a5b}
+ body.g2n-printing #tjPrintSheet .tj-report-targets span{border:1px solid #cfc9ba;color:#3c3730}
+ body.g2n-printing #tjPrintSheet .tj-report-card p{color:#6f675a}
+ body.g2n-printing #tjPrintSheet h2{font-size:15px;margin:16px 0 6px;page-break-after:avoid}
 }
 @media(max-width:420px){.audit-dash-actions{gap:7px}}
 </style>
