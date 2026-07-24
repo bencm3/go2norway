@@ -3,6 +3,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
+<!-- go2no v129: záznam „Konec cesty“. Kontextové tlačítko dashboardu (Zahájit → Ukončit → souhrn), formulář s koncovým stavem tachometru, řádek v deníku, cílová vlajka 🏁 v mapě; procenta průběhu se zobrazují reálně i přes 100 % plánu. Konec je běžný záznam type:'end' – merge, synchronizace i exporty beze změny struktury. -->
+<!-- go2no v128: oprava živé cesty po návratu z Norska. (1) Editace záznamu už nikdy automaticky nepřepíše uloženou GPS aktuální polohou; obnova jen tlačítkem ⌖. (2) Poloha/kotva se řadí podle času události, ne času editace. (3) Záznamy „cíl vynechán / vrácen“ negenerují řádek deníku, bod trasy ani symbol mapy. (4) Zelené tlačítko Zahájit cestu má záložní přímý posluchač a start lze doplnit i zpětně z deníku. -->
 <!-- go2no v126: každý praktický odkaz nyní nejprve otevírá vysvětlující spodní kartu; externí stránka se otevře až samostatným tlačítkem. -->
 <!-- go2no v125: praktické odkazy jsou přesunuty z dashboardu do záhlaví Příprav na cestu; doplněny Vegvesen trafikk, ePass24 a Windy. -->
 <!-- go2no v124: k obnoveným praktickým odkazům přidány existující odkazy TT-Line a Stena Line pro Trelleborg ↔ Rostock. -->
@@ -1675,6 +1677,18 @@ const EMBED_CFG={"cons":6.1,"refuel":20,"refuelMode":"manual","geoRadiusKm":100,
     // Před startem: zelené tlačítko vlevo, původní Kontrola vpravo. Po startu
     // se zelené tlačítko již nevyrenderuje a zůstane jen původní Kontrola.
     if(start&&actions) actions.insertBefore(start,actions.firstChild);
+    /* v128: záložní přímý posluchač. Delegovaný handler dokumentu běží v capture
+       fázi a při úspěchu zastaví propagaci, takže se posluchače nikdy nesejdou
+       dvakrát; selže-li však delegace (na cestě se tlačítko ukázalo jako němé),
+       otevře formulář tento fyzicky navázaný onclick. */
+    if(start&&!start.__g2nDirectStart){
+      start.__g2nDirectStart=true;
+      start.onclick=function(ev){ try{ev.preventDefault();}catch(_){}
+        const tj=window.go2noTripJournal, act=this&&this.dataset?this.dataset.tjAction:'start';
+        if(act==='end'&&tj&&typeof tj.openEndForm==='function') tj.openEndForm();
+        else if(tj&&typeof tj.openStartForm==='function') tj.openStartForm();
+      };
+    }
     const btn=host.querySelector('#auditDashOpen'); if(btn) btn.onclick=openAuditModal;
     requestAnimationFrame(()=>syncDashStartButtonSize(rb));
   }
@@ -2037,6 +2051,9 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
 
   function visibleEntries(j){ return safeArray(j.entries).filter(e=>!e.deleted).slice().sort((a,b)=>ms(a.at)-ms(b.at)||ms(a.createdAt)-ms(b.createdAt)); }
   function journalStart(j){ return j&&j.start&&!j.start.deleted?j.start:null; }
+  /* v129: konec cesty je běžný záznam type:'end' – prochází mergem, synchronizací
+     i zálohou beze změny datové struktury. Platí vždy ten časově poslední. */
+  function journalEnd(j){ const rows=safeArray(j&&j.entries).filter(e=>e&&!e.deleted&&e.type==='end'); rows.sort((a,b)=>ms(a.at)-ms(b.at)); return rows.length?rows[rows.length-1]:null; }
   function targetStateMap(j){
     const states={};
     visibleEntries(j).filter(e=>e.targetId && (e.type==='arrival'||e.type==='skip'||e.type==='target')).forEach(e=>{
@@ -2231,6 +2248,9 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
 
   function journalDashHTML(){
     const x=liveStats(), startKm=Number(x.st&&x.st.odometerKm), hasStart=Number.isFinite(startKm)&&startKm>0, fuel=x.fuel, lastEvent=x.entries.at(-1), p=Math.round(x.progress*10)/10;
+    /* v129: popisek procent ukazuje skutečný poměr i přes 100 % (kilometry mimo
+       plán, objížďky); grafická šířka pruhu zůstává zastropovaná na 100 %. */
+    const pReal=x.distance!=null&&x.plan.adjustedKm>0?Math.round(x.distance/x.plan.adjustedKm*1000)/10:p;
     const timeline=tjDashTripTimelineHTML();
     const realText=x.distance==null?'—':fmtN(x.distance)+' km';
     const remainText=fmtN(x.plan.remainingKm)+' km';
@@ -2248,7 +2268,13 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const helper=hasStart?`Další: ${nextText}`:'';
     // Po zahájení se zelené tlačítko z dashboardu úplně vytratí. Úprava
     // uloženého startu patří do deníku, ne mezi běžné ovládací prvky dashboardu.
-    const startButton=hasStart?'':`<button class="tj-dash-start-btn" data-tj-action="start" title="Zahájit živou cestu">Zahájit cestu</button>`;
+    /* v129: tlačítko je kontextové. Před startem zelené „Zahájit cestu“, během
+       živé cesty jantarové „Ukončit cestu“, po uloženém konci žádné – úpravy
+       obou hraničních záznamů se dělají z deníku. */
+    const endRec=journalEnd(x.j);
+    const startButton=!hasStart
+      ?`<button class="tj-dash-start-btn" data-tj-action="start" title="Zahájit živou cestu">Zahájit cestu</button>`
+      :(endRec?'':`<button class="tj-dash-start-btn tj-dash-end-btn" data-tj-action="end" title="Ukončit živou cestu">Ukončit cestu</button>`);
     const status=hasStart?`<div class="tj-dash-status">${esc(latest)}</div>`:'';
     /* v125: provozní odkazy jsou soustředěny v kartě Přípravy na cestu, aby
        aktivní dashboard zůstal zaměřený pouze na průběh živé cesty. */
@@ -2257,7 +2283,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       ${topLine}
       <div class="dash-main"><div class="dash-km"><b>${esc(realText)}</b><span>skutečně od startu</span></div><div class="dash-rem"><b>${esc(remainText)}</b><span>zbývá podle plánu</span></div></div>
       <div class="dash-progress" title="Skutečně ujeto ${esc(realText)} vůči upravenému plánu ${fmtN(x.plan.adjustedKm)} km"><span style="width:${p}%"></span><i style="left:${p}%"></i></div>
-      <div class="dash-scale"><span>0 km</span><span>${fmtN(x.plan.adjustedKm)} km · ${fmtN(p,1)} %</span></div>
+      <div class="dash-scale"><span>0 km</span><span>${fmtN(x.plan.adjustedKm)} km · ${fmtN(pReal,1)} %</span></div>
       <div class="tj-metrics dash-metrics">
         ${dashMetric('Palivo',fuelText,fuel.fuel.length+'× tankování','')}
         ${dashMetric('Spotřeba',cons,fuel.lastSegment?'poslední plno → plno':'přesná po 2× plno',fuel.overall!=null?'good':'warn')}
@@ -2281,6 +2307,11 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     window.go2noTripJournal={
       dashboardHTML:journalDashHTML,
       railHTML:journalRailHTML,
+      /* v128: přímý vstup do formuláře začátku cesty. Slouží záložnímu posluchači
+         navázanému fyzicky na zelené tlačítko (viz applyDashAudit), aby zahájení
+         nezáviselo výhradně na delegovaném click handleru dokumentu. */
+      openStartForm:openStartForm,
+      openEndForm:openEndForm,
       afterRender:afterRender,
       onOpenSettings:function(){ injectSettings(); updateSettingsPanel(); },
       beforeOnlineState:function(){ return clone(ensureJournal()); },
@@ -2448,6 +2479,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     if(e.type==='skip'){ const l=legForId(e.targetId); return 'Cíl vynechán · '+(l?cleanName(l.to_name):'cíl'); }
     if(e.type==='target'){ const l=legForId(e.targetId); return 'Cíl vrácen mezi čekající · '+(l?cleanName(l.to_name):'cíl'); }
     if(e.type==='odometer') return 'Stav tachometru';
+    if(e.type==='end') return 'Konec cesty';
     return TJ_CATEGORY[e.category]||'Ostatní útrata';
   }
   function entryDetail(e){
@@ -2468,7 +2500,11 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const days=Object.keys(groups).sort((a,b)=>a.localeCompare(b));
     const list=days.length?days.map(day=>journalDayHTML(day,groups[day],j)).join(''):`<p class="tj-journal-empty">Deník je zatím prázdný. Záznamy se přidávají z karet jednotlivých cílů.</p>`;
     const readOnly=familyView?`<p class="tj-journal-readonly">Rodinný náhled · pouze ke čtení</p>`:'';
-    openJournalModal('Cestovní deník',`<article class="tj-journal-paper">${journalPaperNav()}${readOnly}${list}</article>`,'journal');
+    /* v128: chybí-li uložený začátek cesty, deník nabídne jeho doplnění přímo zde.
+       Je to záložní cesta nezávislá na zeleném tlačítku dashboardu; formulář dovoluje
+       zadat datum, čas i stav tachometru zpětně. */
+    const startMissing=(!familyView&&!journalStart(j))?`<div class="tj-report-note"><strong>Cesta nemá uložený začátek.</strong> Bez něj se nepočítají ujeté kilometry ani ukazatel průběhu. <button type="button" data-tj-action="start" style="display:block;margin-top:8px">Doplnit začátek cesty</button></div>`:'';
+    openJournalModal('Cestovní deník',`<article class="tj-journal-paper">${journalPaperNav()}${startMissing}${readOnly}${list}</article>`,'journal');
   }
 
   function reportDateLabel(key){ try{return new Date(key+'T12:00:00').toLocaleDateString('cs-CZ',{day:'numeric',month:'numeric'});}catch(e){return key;} }
@@ -2565,7 +2601,10 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     }catch(e){ return day; }
   }
   function journalTimeline(j){
-    const rows=visibleEntries(j).slice();
+    /* v128: záznamy „cíl vynechán“ a „cíl vrácen mezi čekající“ se v deníku
+       nezobrazují. V datech zůstávají (řídí stav cíle a synchronizaci), jen
+       negenerují řádek zápisu. */
+    const rows=visibleEntries(j).filter(e=>e.type!=='skip'&&e.type!=='target');
     const start=journalStart(j);
     if(start) rows.push(Object.assign({_tjStart:true,type:'start'},start));
     return rows.sort((a,b)=>ms(a.at)-ms(b.at)||ms(a.createdAt)-ms(b.createdAt));
@@ -2587,6 +2626,11 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       add(Number.isFinite(Number(e.fuelLevelL))?'palivo '+fmtN(e.fuelLevelL,1)+' l':'');
       add(note);
       return {kind:'Zahájení cesty',detail:parts.join(' · ')};
+    }
+    if(e.type==='end'){
+      add(entryOdo(e)!=null?'tachometr '+fmtN(e.odometerKm)+' km':'');
+      add(note);
+      return {kind:'Konec cesty',detail:parts.join(' · ')};
     }
     if(e.type==='fuel'){
       add(Number.isFinite(Number(e.liters))?fmtN(e.liters,2)+' l':'');
@@ -2641,7 +2685,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
 
   function formCommon(formId,at,gps){
     const gpsValue=gps?gpsText(gps):'';
-    return `<div class="tj-form-meta"><label class="tj-field">Datum a čas<input name="at" type="datetime-local" value="${escAttr(localInput(at))}"></label><div class="tj-field tj-gps-field"><span>GPS</span><input name="gpsText" inputmode="text" value="${escAttr(gpsValue)}" placeholder="automaticky" title="Šířka, délka – lze ručně upravit"><button class="tj-gps-refresh" type="button" data-tj-action="refresh-form-gps" data-form="${escAttr(formId)}" title="Obnovit GPS" aria-label="Obnovit GPS">⌖</button></div></div>`;
+    return `<div class="tj-form-meta"><label class="tj-field">Datum a čas<input name="at" type="datetime-local" value="${escAttr(localInput(at))}"></label><div class="tj-field tj-gps-field"><span>GPS</span><input name="gpsText" inputmode="text" data-tj-existing="${at?1:0}" value="${escAttr(gpsValue)}" placeholder="automaticky" title="Šířka, délka – lze ručně upravit"><button class="tj-gps-refresh" type="button" data-tj-action="refresh-form-gps" data-form="${escAttr(formId)}" title="Obnovit GPS" aria-label="Obnovit GPS">⌖</button></div></div>`;
   }
   function gpsText(g){ return g?`${Number(g.lat).toFixed(5)}, ${Number(g.lon).toFixed(5)}`:''; }
   function gpsPair(raw){
@@ -2670,6 +2714,11 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     if(!form) return; form._tjGps=normalizeGps(form._tjGps)||null;
     const field=form.querySelector('[name="gpsText"]');
     if(field) field.addEventListener('input',()=>{ form.dataset.tjGpsManual='1'; });
+    /* v128: oprava „pavouka“ v mapě. Při EDITACI existujícího záznamu se aktuální
+       poloha telefonu nikdy nedosazuje automaticky – uloženou GPS smí změnit jen
+       ruční přepis pole nebo vědomé klepnutí na tlačítko ⌖. Automatické doplnění
+       polohy zůstává pouze u zcela nového zápisu. */
+    if(field && field.dataset.tjExisting==='1') return;
     gpsSnapshot().then(g=>{ if(g){ form._tjGps=g; applyGpsToForm(form,g,false); } }).catch(()=>{});
   }
   function refreshFormGps(form){
@@ -2720,6 +2769,18 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     openJournalModal(old?'Upravit začátek cesty':'Zahájit cestu',`<form id="${formId}">${formCommon(formId,old&&old.at,old&&old.gps)}${infoTip('Uložením se nastaví výchozí stav tachometru a paliva pro živou cestu.')}<div class="tj-form-grid"><label class="tj-field">Stav tachometru (km)<input name="odometerKm" required type="number" min="0" step="1" inputmode="numeric" value="${escAttr(old&&old.odometerKm!=null?old.odometerKm:'')}"></label><label class="tj-field">Palivo v nádrži (l)<input name="fuelLevelL" type="number" min="0" step="0.1" inputmode="decimal" value="${escAttr(old&&old.fuelLevelL!=null?old.fuelLevelL:'')}"></label></div><div class="tj-form-actions"><button type="button" data-tj-action="open-journal">Zpět</button><button class="primary" type="submit">${old?'Uložit změny':'Zahájit cestu'}</button></div></form>`,'form');
     const form=document.getElementById(formId); form._tjGps=old&&old.gps||null; bindGps(form);
     form.addEventListener('submit',e=>{ e.preventDefault(); const odo=validateOdo(form.odometerKm.value); if(odo==null)return; const fuel=parseNum(form.fuelLevelL.value); j.start={id:old&&old.id||uid('start'),odometerKm:odo,fuelLevelL:fuel!=null?fuel:null,at:inputToIso(form.at.value),gps:gpsFromForm(form)||null,createdAt:old&&old.createdAt||nowIso(),updatedAt:nowIso()}; persistJournal('začátek cesty'); closeJournalModal(); toast(old?'Začátek cesty upraven.':'Cesta zahájena.'); });
+  }
+
+  /* v129: ukončení cesty. Zrcadlí formulář startu; výsledek je běžný záznam
+     type:'end' s koncovým stavem tachometru, takže projde mergem i synchronizací
+     bez zásahu do struktury deníku. Vyžaduje uložený začátek cesty. */
+  function openEndForm(entry){
+    const j=ensureJournal();
+    if(!journalStart(j)){ openStartForm(); return; }
+    const old=entry||journalEnd(j), formId='tjEndForm', last=lastOdometer(j);
+    openJournalModal(old?'Upravit konec cesty':'Ukončit cestu',`<form id="${formId}">${formCommon(formId,old&&old.at,old&&old.gps)}${infoTip('Uložením se uzavře živá cesta: skutečné kilometry se počítají po tento stav tachometru a dashboard přejde do souhrnu.')}<div class="tj-form-grid"><label class="tj-field">Stav tachometru (km)<input name="odometerKm" required type="number" min="0" step="1" inputmode="numeric" value="${escAttr(old&&old.odometerKm!=null?old.odometerKm:(last&&last.odometerKm!=null?last.odometerKm:''))}"></label><label class="tj-field">Poznámka<input name="note" value="${escAttr(old&&old.note||'')}"></label></div><div class="tj-form-actions"><button type="button" data-tj-action="open-journal">Zpět</button><button class="primary" type="submit">${old?'Uložit změny':'Ukončit cestu'}</button></div></form>`,'form');
+    const form=document.getElementById(formId); form._tjGps=old&&old.gps||null; bindGps(form);
+    form.addEventListener('submit',e=>{ e.preventDefault(); const odo=validateOdo(form.odometerKm.value); if(odo==null)return; upsertEntry(Object.assign({},old||{}, {id:old&&old.id||uid('end'),type:'end',odometerKm:odo,note:(form.note.value||'').trim(),at:inputToIso(form.at.value),gps:gpsFromForm(form)||null}),'konec cesty'); closeJournalModal(); toast(old?'Konec cesty upraven.':'Cesta ukončena.'); });
   }
 
   function openOdometerForm(entry){
@@ -2917,7 +2978,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   async function deleteEntry(id){
     const j=ensureJournal(), e=j.entries.find(x=>x&&x.id===id); if(!e) return; if(!confirm('Smazat tento záznam z cestovního deníku?')) return; try{ await deleteLocalPhoto(e.photoId||id); }catch(_){} e.deleted=true; e.updatedAt=nowIso(); persistJournal('smazání záznamu'); if(e.type==='fuel' && typeof updateAutoRefuelAverage==='function') updateAutoRefuelAverage(); renderJournal(); toast('Záznam smazán.');
   }
-  function editEntry(id){ const e=ensureJournal().entries.find(x=>x&&x.id===id&&!x.deleted); if(!e)return; if(e.type==='note')openNoteForm(e.targetId,e); else if(e.type==='fuel')openFuelForm(e); else if(e.type==='pause')openPauseForm(e); else if(e.type==='lodging')openLodgingForm(e); else if(e.type==='odometer')openOdometerForm(e); else if(e.type==='arrival'||e.type==='skip'||e.type==='target')openTargetForm(e.targetId,e.status,e); else openExpenseForm(e); }
+  function editEntry(id){ const e=ensureJournal().entries.find(x=>x&&x.id===id&&!x.deleted); if(!e)return; if(e.type==='note')openNoteForm(e.targetId,e); else if(e.type==='fuel')openFuelForm(e); else if(e.type==='pause')openPauseForm(e); else if(e.type==='lodging')openLodgingForm(e); else if(e.type==='odometer')openOdometerForm(e); else if(e.type==='end')openEndForm(e); else if(e.type==='arrival'||e.type==='skip'||e.type==='target')openTargetForm(e.targetId,e.status,e); else openExpenseForm(e); }
   function resetTrip(){
     if(!confirm('Vymazat cestovní deník, stav tachometru na startu a označení navštívených/vynechaných cílů? Připravený itinerář zůstane.')) return;
     if(!confirm('Druhé potvrzení: opravdu zahájit novou cestu a nevratně smazat všechny živé záznamy?')) return;
@@ -3025,6 +3086,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     if(e.type==='fuel') return {kind:'fuel',glyph:'⛽',title:entryTitle(e)};
     if(e.type==='lodging') return {kind:'lodging',glyph:'🛏',title:entryTitle(e)};
     if(e.type==='odometer') return {kind:'other',glyph:'⌁',title:entryTitle(e)};
+    if(e.type==='end') return {kind:'start',glyph:'🏁',title:entryTitle(e)};
     if(e.type==='arrival') return {kind:'other',glyph:'✓',title:entryTitle(e)};
     if(e.type==='skip') return {kind:'other',glyph:'↷',title:entryTitle(e)};
     const c=e.category||'other'; return {kind:c,glyph:c==='food'?'🍴':c==='parking'?'🅿':c==='admission'?'🎫':c==='ferry'?'⛴':c==='accommodation'?'🛏':'💳',glyphHtml:c==='ferry'?FERRY_INLINE_ICON:'',title:entryTitle(e)};
@@ -3077,6 +3139,10 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     });
     const eventPoints=[];
     visibleEntries(j).forEach(e=>{
+      /* v128: vynechání cíle (skip) a vrácení mezi čekající (target) jsou administrativní
+         úkony – nesmí vkládat bod do skutečné trasy ani symbol do mapy. Stav cíle
+         (přeškrtnutý kroužek) se dál řídí targetStateMap, který čte entries přímo. */
+      if(e.type==='skip'||e.type==='target')return;
       const gps=e.gps; if(!gps||!Number.isFinite(Number(gps.lat))||!Number.isFinite(Number(gps.lon)))return;
       const m=mapEventMeta(e); eventPoints.push({key:'event:'+e.id,kind:'event',lat:Number(gps.lat),lon:Number(gps.lon),at:e.at||'',entry:e,glyph:m.glyph,title:m.title||entryTitle(e),eventKind:m.kind,current:!!e.current});
     });
@@ -3472,6 +3538,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       if(act==='open-journal') renderJournal();
       else if(act==='open-report') renderTripReport();
       else if(act==='start') openStartForm();
+      else if(act==='end') openEndForm();
       else if(act==='odometer') { if(!journalStart(ensureJournal())) openStartForm(); else openOdometerForm(); }
       else if(act==='fuel') openFuelForm();
       else if(act==='pause') openPauseForm();
@@ -7260,6 +7327,9 @@ body.family-view .g2n-nb-tab,body.family-view .g2n-nb-panel{display:none!importa
   cursor:pointer!important;touch-action:manipulation!important;
 }
 .audit-dash-actions>.tj-dash-start-btn:active{filter:brightness(1.16);transform:translateY(1px)}
+/* v129: jantarová varianta pro ukončení živé cesty; rozměry a chování přebírá od zeleného startu. */
+.tj-dash-start-btn.tj-dash-end-btn{border-color:#ffcf6e!important;background:linear-gradient(135deg,#e8a23c,#c07a17)!important;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset,0 6px 14px rgba(154,101,20,.30)!important}
+body.family-view [data-tj-action="end"]{display:none!important}
 @media(max-width:420px){.audit-dash-actions{gap:7px}}
 </style>
 
@@ -7912,7 +7982,10 @@ body.g2n-trip-map-open .g2n-side-drawer-handle{opacity:0!important;visibility:hi
   function entriesWithGps(j,startAt){
     const out=[];
     const add=(p,at,source)=>{ const q=normalPoint(p); const ms=parseMs(at)||0; if(q&&(!startAt||!ms||ms>=startAt))out.push({point:q,at:ms,source}); };
-    (Array.isArray(j.entries)?j.entries:[]).filter(e=>e&&!e.deleted).forEach(e=>add(e.gps,e.updatedAt||e.at||e.createdAt,e.type||'záznam'));
+    /* v128: bod se v čase řadí podle okamžiku události (at), nikoli podle updatedAt –
+       zpětná oprava záznamu jinak přesunula jeho polohu na konec časové osy.
+       Administrativní záznamy (vynechání / vrácení cíle) polohu neurčují. */
+    (Array.isArray(j.entries)?j.entries:[]).filter(e=>e&&!e.deleted&&e.type!=='skip'&&e.type!=='target').forEach(e=>add(e.gps,e.at||e.createdAt||e.updatedAt,e.type||'záznam'));
     add(j.start&&j.start.gps,j.start&&j.start.at,'začátek cesty');
     try{ const live=(typeof currentPosition!=='undefined'?currentPosition:window.currentPosition); const p=normalPoint(live); const stamp=Number(live&&live.timestamp)||now(); if(p&&(!startAt||stamp>=startAt))out.push({point:p,at:stamp,source:'aktuální GPS'}); }catch(e){}
     return out.sort((a,b)=>b.at-a.at);
