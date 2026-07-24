@@ -3,6 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
+<!-- go2no v137: (1) opravena chyba priority operátorů v costStats – každá útrata s kategorií (jídlo, trajekt, parkovné, vstupy) se dosud načítala do Ubytování; graf kategorií nyní ukazuje čtyři skupiny: Ubytování, Doprava (palivo+trajekty+parkovné), Potraviny, Ostatní. (2) Filtr mapy: ⛽ tankování · ⛴ trajekty · 🛏 noclehy · 🍽 jídlo · ✓ příjezdy (útraty, poznámky, zastávky a hranice cesty se zobrazují vždy). (3) Z dashboardu odstraněn „Plán po dnech“ i kontrola itineráře; z nastavení spotřeba, dotankování a perimetr. (4) Spodní tlačítko je kontextové: Reporty → rozcestník, v deníku vede do Přehledů a naopak; horní záložky v obou pohledech zrušeny. -->
 <!-- go2no v136: popisky v liště mapy bez titěrných mikrosymbolů – jen text verzálkami (ITINERÁŘ · TOP60 · PLÁN · ZÁZNAMY · STOPA · FILTR). -->
 <!-- go2no v135: filtr typů záznamů v mapě už nezabírá vlastní řádku – ovládá ho jedno tlačítko „⛃ Filtr“ ve stávající liště vrstev a rozbaluje se jako malý překryvný panel nad mapou (klepnutím do mapy se sbalí). -->
 <!-- go2no v134: jednorázové doplnění dat cesty Norsko 2026 (8 trajektů z výpisu Ferrypay, noční trajekt Hirtshals–Kristiansand za 91 EUR / 2 287,97 Kč, převod útraty „Ubytování Smarthotel Forus“ na řádný hotelový nocleh). Vázáno na resetAt této konkrétní cesty – po vyčištění a nové cestě se nikdy znovu nespustí; smazané záznamy se znovu nevkládají. Papírový report nově obsahuje jmenovitý seznam trajektů s datem a cenou. -->
@@ -1201,18 +1202,13 @@ body.editing .card > .chead > .headboxes > .targetbox > b.ed.editing{box-shadow:
     <button class="sheet-close" id="closeSetTop" title="Zavřít">×</button>
   </div>
   <div class="sheet-body">
-    <details class="setting-details g2n-route-settings" open="">
-      <summary class="g2n-sr-only" aria-hidden="true"></summary>
-      <div class="setting-panel">
-        <div class="setting-grid setting-grid-compact">
-          <div class="setting-inline-triple">
-            <label>Průměrná spotřeba (l / 100 km)<input id="cfgCons" type="number" step="0.1" inputmode="decimal"></label>
-            <label>Průměrné dotankování (l)<input id="cfgRefuel" type="number" step="0.1" inputmode="decimal"></label>
-            <label>Perimetr sledování cílů dle aktuální GPS (km)<input id="geoRadiusKm" type="number" min="1" max="9999" step="1" inputmode="numeric"></label>
-          </div>
-        </div>
-      </div>
-    </details>
+    <!-- v137: celá sekce plánování paliva a perimetru odstraněna z nastavení.
+         Průměrná spotřeba, průměrné dotankování ani perimetr sledování cílů se
+         v praxi neosvědčily; skrytá pole zůstávají jen proto, aby původní kód,
+         který je čte, nespadl na chybějícím prvku. -->
+    <div hidden>
+      <input id="cfgCons" type="hidden"><input id="cfgRefuel" type="hidden"><input id="geoRadiusKm" type="hidden">
+    </div>
 
     <details class="setting-details" open="">
       <summary>Online synchronizace</summary>
@@ -1533,12 +1529,15 @@ const EMBED_CFG={"cons":6.1,"refuel":20,"refuelMode":"manual","geoRadiusKm":100,
 
   function ensureControls(){
     const top=document.querySelector('.top'); if(!top) return;
-    if(!document.getElementById('auditBtn')){
+    /* v137: tlačítko kontroly itineráře (✓) ani perimetr blízkosti (📍) se už
+       nevytvářejí – obojí se v praxi neosvědčilo a jen komplikovalo ovládání.
+       Vnitřní výpočty zůstávají nedotčené, jen nemají vstup z rozhraní. */
+    if(false){
       const b=document.createElement('button'); b.className='tbtn audit-top-btn'; b.id='auditBtn'; b.type='button'; b.title='Kontrola itineráře'; b.textContent='✓';
       const edit=document.getElementById('btnEdit'); top.insertBefore(b, edit||top.lastChild);
       b.addEventListener('click', openAuditModal);
     }
-    if(!document.getElementById('geoBtn')){
+    if(false){
       const g=document.createElement('button'); g.className='tbtn geo-top-btn'; g.id='geoBtn'; g.type='button'; g.setAttribute('aria-pressed','false'); g.title='Zvýraznit cíle v nastaveném okruhu od aktuální polohy'; g.textContent='📍';
       const audit=document.getElementById('auditBtn'); top.insertBefore(g, audit ? audit.nextSibling : (document.getElementById('btnEdit')||top.lastChild));
       g.addEventListener('click', toggleGeoWatch);
@@ -1646,10 +1645,10 @@ const EMBED_CFG={"cons":6.1,"refuel":20,"refuelMode":"manual","geoRadiusKm":100,
 
   function auditCountLabel(total){ return total===1?'1 nález':(total>=2&&total<=4?total+' nálezy':total+' nálezů'); }
   function dashAuditHTML(){
-    const total=hardCount()+softCount();
-    // Tlačítko kontroly ponechává svůj původní vzhled, rozměry i význam.
-    // Pouze dostává vlastní řádek, aby se vlevo mohlo vložit malé zelené spuštění cesty.
-    return `<div class="audit-dashbox"><div class="audit-dash-actions"><button id="auditDashOpen" title="Otevřít kontrolu itineráře">Otevřít kontrolu</button></div><span class="audit-dash-count">${total?auditCountLabel(total):'bez nálezů'}</span></div>`;
+    /* v137: kontrola itineráře odstraněna z uživatelského rozhraní. Praxe ukázala,
+       že po naplánování nemá užitek a jen mate. Rámeček zůstává jako nosič
+       tlačítka Zahájit / Ukončit cestu, které se do něj přesouvá. */
+    return `<div class="audit-dashbox"><div class="audit-dash-actions"></div></div>`;
   }
 
   function syncDashStartButtonSize(scope){
@@ -2115,7 +2114,11 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     let total=0;
     visibleEntries(j).forEach(e=>{
       const v=Number(e.amountCzk)||0; if(!v) return;
-      const k=e.type==='fuel'?'fuel':(e.category||e.type==='lodging'?'accommodation':'other');
+      /* v137: oprava chyby priority operátorů. Původní zápis vyhodnocoval
+         (e.category || e.type==='lodging') ? 'accommodation' : 'other', takže
+         KAŽDÁ útrata s vyplněnou kategorií (jídlo, trajekt, parkovné, vstupy)
+         spadla do Ubytování. Správně rozhoduje nejdřív typ záznamu. */
+      const k=e.type==='fuel'?'fuel':(e.type==='lodging'?'accommodation':(e.category||'other'));
       const key=map.hasOwnProperty(k)?k:'other'; map[key]+=v; total+=v;
     });
     return {total,map};
@@ -2261,7 +2264,9 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     /* v129: popisek procent ukazuje skutečný poměr i přes 100 % (kilometry mimo
        plán, objížďky); grafická šířka pruhu zůstává zastropovaná na 100 %. */
     const pReal=x.distance!=null&&x.plan.adjustedKm>0?Math.round(x.distance/x.plan.adjustedKm*1000)/10:p;
-    const timeline=tjDashTripTimelineHTML();
+    /* v137: „Plán po dnech“ z dashboardu odstraněn – podrobné vyhodnocení
+       cesty se přesunulo do papírových reportů, kde je čitelnější. */
+    const timeline='';
     const realText=x.distance==null?'—':fmtN(x.distance)+' km';
     const remainText=fmtN(x.plan.remainingKm)+' km';
     const fuelText=fuel.totalLiters?fmtN(fuel.totalLiters,1)+' l':'—';
@@ -2395,6 +2400,8 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     // Form information is moved into the header. Remove the previous moved node
     // before changing body content; otherwise every newly opened form accumulates another “i”.
     head?.querySelectorAll('.tj-info').forEach(node=>node.remove());
+    /* v137: po každé změně pohledu přepočítat popisek spodního tlačítka. */
+    window.setTimeout(()=>{ try{ installFab(); }catch(_){ } },0);
     modal.classList.toggle('tj-map-fullscreen',view==='map');
     modal.classList.toggle('tj-journal-mode',view==='journal');
     modal.classList.toggle('tj-form-mode',view==='form');
@@ -2425,11 +2432,22 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const modal=document.getElementById('tjModal');
     if(modal){ modal.classList.remove('show','tj-map-fullscreen','tj-journal-mode','tj-form-mode'); }
     if(tjPreviewUrl){ try{URL.revokeObjectURL(tjPreviewUrl);}catch(_){} tjPreviewUrl=''; }
+    try{ installFab(); }catch(_){ }
   }
   function installFab(){
     let b=document.getElementById('tjFab');
     if(familyView){ if(b) b.remove(); return; }
-    if(!b){ b=document.createElement('button'); b.id='tjFab'; b.className='tj-fab'; b.type='button'; b.setAttribute('data-tj-action','open-journal'); b.innerHTML='<b>📘</b> Deník'; document.body.appendChild(b); }
+    if(!b){ b=document.createElement('button'); b.id='tjFab'; b.className='tj-fab'; b.type='button'; document.body.appendChild(b); }
+    /* v137: tlačítko je kontextové. Mimo deník a přehledy nabízí rozcestník
+       „Reporty“; v deníku vede rovnou do Přehledů a v Přehledech zpět do Deníku,
+       takže mezi nimi lze přepínat jediným klepnutím bez horních záložek. */
+    const modal=document.getElementById('tjModal'), open=!!(modal&&modal.classList.contains('show'));
+    const view=open?String((modalBody()||{}).dataset&&modalBody().dataset.tjView||''):'';
+    let act='reports-menu', label='Reporty', icon='📘';
+    if(view==='journal'){ act='open-report'; label='Přehledy'; icon='📊'; }
+    else if(view==='report'){ act='open-journal'; label='Deník'; icon='📘'; }
+    b.setAttribute('data-tj-action',act);
+    b.innerHTML='<b>'+icon+'</b> '+esc(label);
   }
   function refreshJournalUi(){
     updateSettingsPanel(); installFab();
@@ -2518,7 +2536,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
        tlačítko Ukončit cestu i zde – deníkové ovládání funguje nezávisle na
        dashboardové roletě, kde se klepnutí na některých telefonech ztrácí. */
     const endPending=(!familyView&&journalStart(j)&&!journalEnd(j))?`<div class="tj-report-note"><strong>Cesta stále běží.</strong> Až budeš doma, ulož koncový stav tachometru a datum návratu. <button type="button" data-tj-action="end" style="display:block;margin-top:8px">Ukončit cestu</button></div>`:'';
-    openJournalModal('Cestovní deník',`<article class="tj-journal-paper">${journalPaperNav()}${startMissing}${endPending}${readOnly}${list}</article>`,'journal');
+    openJournalModal('Cestovní deník',`<article class="tj-journal-paper">${startMissing}${endPending}${readOnly}${list}</article>`,'journal');
   }
 
   function reportDateLabel(key){ try{return new Date(key+'T12:00:00').toLocaleDateString('cs-CZ',{day:'numeric',month:'numeric'});}catch(e){return key;} }
@@ -2563,8 +2581,16 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   }
 
   function categoryReportRows(costs){
-    const labels={fuel:'Palivo',food:'Jídlo',parking:'Parkovné',admission:'Vstupy',ferry:'Trajekt',accommodation:'Ubytování',other:'Ostatní'};
-    return Object.keys(labels).map(k=>({key:k,label:labels[k],value:Number(costs.map[k])||0})).filter(x=>x.value>0).sort((a,b)=>b.value-a.value);
+    /* v137: čtyři skupiny místo syrových kategorií – Ubytování (všechny noclehy
+       dohromady), Doprava (palivo + trajekty + parkovné), Potraviny, Ostatní. */
+    const m=costs&&costs.map||{};
+    const groups=[
+      {key:'accommodation',label:'Ubytování',value:Number(m.accommodation)||0},
+      {key:'transport',label:'Doprava',value:(Number(m.fuel)||0)+(Number(m.ferry)||0)+(Number(m.parking)||0)},
+      {key:'food',label:'Potraviny',value:Number(m.food)||0},
+      {key:'other',label:'Ostatní',value:(Number(m.other)||0)+(Number(m.admission)||0)}
+    ];
+    return groups.filter(x=>x.value>0).sort((a,b)=>b.value-a.value);
   }
   function categoryBarsHTML(rows,total){
     if(!rows.length) return `<div class="tj-chart-empty">Zatím nejsou zapsané žádné náklady.</div>`;
@@ -2690,13 +2716,19 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     window.setTimeout(done,90000);
   }
 
+  /* v137: rozcestník po klepnutí na spodní tlačítko Reporty. */
+  function openReportsMenu(){
+    openJournalModal('Reporty',`<div class="tj-reports-menu"><button type="button" data-tj-action="open-journal"><b>📘</b><span>Deník</span><small>zápisy den po dni</small></button><button type="button" data-tj-action="open-report"><b>📊</b><span>Přehledy</span><small>souhrny, výdaje, tisk</small></button></div>`,'menu');
+  }
+
   function renderTripReport(){
     const x=liveStats(), j=x.j, rows=dailyReportRows(j), costs=x.costs, catRows=categoryReportRows(costs), daysWithCost=rows.filter(r=>r.cost>0).length, costPerKm=x.distance&&x.distance>0?costs.total/x.distance:null;
     const tripDays=rows.length, avgDaily=daysWithCost?costs.total/daysWithCost:null;
     const readOnly=familyView?`<p class="tj-readonly-note">Rodinný náhled: tento přehled je pouze ke čtení. Online stav se obnovuje automaticky.</p>`:'';
     const exportBlock=familyView?'':`<div class="tj-exportbar"><button class="primary" data-tj-action="export-csv">⇩ Export CSV pro Excel</button><button data-tj-action="print-report">🖨 Tisk / PDF</button></div>${infoTip('<b>CSV</b> obsahuje všechny zápisy v UTF‑8 se středníkem; český Excel jej běžně otevře přímo. <b>Tisk / PDF</b> otevře systémový tisk s papírovým reportem i deníkem – v Androidu zvol „Uložit jako PDF“.')}`;
-    openJournalModal('Přehledy cesty',`${readOnly}${journalTabs('report')}
-      ${infoTip('Výdaje, skutečně ujeté kilometry, spotřeba a denní průběh vycházejí jen z uložených zápisů.')}
+    /* v137: horní záložky Deník/Přehledy ani vysvětlující „i“ se už nezobrazují –
+       přepínání obstarává spodní kontextové tlačítko a obsah je zřejmý. */
+    openJournalModal('Přehledy cesty',`${readOnly}
       <div class="tj-summary-grid">
         ${reportKpi('Skutečně ujeto',x.distance==null?'—':fmtN(x.distance)+' km',x.st?'od startu':'zatím bez startu','good')}
         ${reportKpi('Náklady / km',costPerKm==null?'—':fmtMoney(costPerKm),x.distance?'podle skutečné vzdálenosti':'čeká na stav km','')}
@@ -3333,11 +3365,18 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     }
     return out;
   }
-  /* v132: klíč typového filtru pro bod záznamu. Neznámé typy se zobrazují vždy. */
+  /* v137: filtrovatelné jsou jen typy, které dávají v mapě smysl – tankování,
+     trajekty, noclehy, jídlo a příjezdy k cílům. Ostatní záznamy (drobné útraty,
+     poznámky, zastávky, začátek a konec) se zobrazují vždy a nefiltrují se. */
   function mapEventTypeVisible(st,p){
     if(!st||!st.typeFilters)return true;
-    const e=p&&p.entry, t=e&&e.type;
-    const key=t==='fuel'?'fuel':t==='lodging'?'lodging':t==='expense'?'expense':t==='pause'?'pause':t==='note'?'note':t==='arrival'?'arrival':t==='end'?'boundary':null;
+    const e=p&&p.entry, t=e&&e.type, cat=e&&e.category;
+    let key=null;
+    if(t==='fuel')key='fuel';
+    else if(t==='lodging')key='lodging';
+    else if(t==='expense'&&cat==='ferry')key='ferry';
+    else if(t==='expense'&&cat==='food')key='food';
+    else if(t==='arrival')key='arrival';
     return key?st.typeFilters[key]!==false:true;
   }
   /* v132: snímek aktuálního výřezu mapy do PNG – dlaždice OSM (crossorigin),
@@ -3462,13 +3501,13 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   function renderTripMap(forceFit){
     openMapHistoryState();
     document.body.classList.add('g2n-trip-map-open');
-    const html=`<section class="tj-map-screen"><header class="tj-map-screen-head"><div><b>Mapa cesty</b></div><button class="tj-map-close" data-tj-action="close-map" aria-label="Zavřít mapu" title="Zavřít mapu">×<span>Zavřít mapu</span></button></header><div class="tj-map-screen-body"><div class="tj-map-shell"><div class="tj-map-toolbar"><button class="active" data-tj-map-filter="targets" title="Zobrazit nebo skrýt cíle itineráře">ITINERÁŘ</button><button class="active" data-tj-map-filter="tops" title="Zobrazit nebo skrýt TOP60">TOP60</button><button data-tj-map-filter="plan" title="Zobrazit nebo skrýt plánovanou linii">PLÁN</button><button class="active" data-tj-map-filter="events" title="Zobrazit nebo skrýt záznamy deníku">ZÁZNAMY</button><button class="active" data-tj-map-filter="route" title="Zobrazit nebo skrýt projetou stopu">STOPA</button><button data-tj-map-typemenu title="Filtr typů záznamů">FILTR</button></div><div class="tj-map-typepop" hidden><button class="active" data-tj-map-type="fuel" title="Tankování">⛽</button><button class="active" data-tj-map-type="lodging" title="Noclehy">🛏</button><button class="active" data-tj-map-type="expense" title="Útraty">💳</button><button class="active" data-tj-map-type="pause" title="Zastávky">📷</button><button class="active" data-tj-map-type="note" title="Poznámky">✉</button><button class="active" data-tj-map-type="arrival" title="Příjezdy k cílům">✓</button><button class="active" data-tj-map-type="boundary" title="Začátek a konec">🏁</button></div><div class="tj-map-viewport" id="tjTripMap"><div class="tj-map-tiles"></div><svg class="tj-map-overlay"></svg><div class="tj-map-markers"></div><div class="tj-map-zoom"><button data-tj-map-control="in" aria-label="Přiblížit" title="Přiblížit">+</button><button data-tj-map-control="out" aria-label="Oddálit" title="Oddálit">−</button><button data-tj-map-control="snapshot" aria-label="Uložit snímek mapy" title="Uložit aktuální výřez mapy jako PNG">📸</button></div><div class="tj-map-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div></div><div id="tjMapDetail"></div></div></section>`;
+    const html=`<section class="tj-map-screen"><header class="tj-map-screen-head"><div><b>Mapa cesty</b></div><button class="tj-map-close" data-tj-action="close-map" aria-label="Zavřít mapu" title="Zavřít mapu">×<span>Zavřít mapu</span></button></header><div class="tj-map-screen-body"><div class="tj-map-shell"><div class="tj-map-toolbar"><button class="active" data-tj-map-filter="targets" title="Zobrazit nebo skrýt cíle itineráře">ITINERÁŘ</button><button class="active" data-tj-map-filter="tops" title="Zobrazit nebo skrýt TOP60">TOP60</button><button data-tj-map-filter="plan" title="Zobrazit nebo skrýt plánovanou linii">PLÁN</button><button class="active" data-tj-map-filter="events" title="Zobrazit nebo skrýt záznamy deníku">ZÁZNAMY</button><button class="active" data-tj-map-filter="route" title="Zobrazit nebo skrýt projetou stopu">STOPA</button><button data-tj-map-typemenu title="Filtr typů záznamů">FILTR</button></div><div class="tj-map-typepop" hidden><button class="active" data-tj-map-type="fuel" title="Tankování">⛽</button><button class="active" data-tj-map-type="ferry" title="Trajekty">⛴</button><button class="active" data-tj-map-type="lodging" title="Noclehy">🛏</button><button class="active" data-tj-map-type="food" title="Jídlo">🍽</button><button class="active" data-tj-map-type="arrival" title="Příjezdy k cílům">✓</button></div><div class="tj-map-viewport" id="tjTripMap"><div class="tj-map-tiles"></div><svg class="tj-map-overlay"></svg><div class="tj-map-markers"></div><div class="tj-map-zoom"><button data-tj-map-control="in" aria-label="Přiblížit" title="Přiblížit">+</button><button data-tj-map-control="out" aria-label="Oddálit" title="Oddálit">−</button><button data-tj-map-control="snapshot" aria-label="Uložit snímek mapy" title="Uložit aktuální výřez mapy jako PNG">📸</button></div><div class="tj-map-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div></div><div id="tjMapDetail"></div></div></section>`;
     openJournalModal('Mapa cesty',html,'map');
     requestAnimationFrame(()=>initTripMap(forceFit!==false));
   }
   function initTripMap(forceFit){
     const root=document.getElementById('tjTripMap'); if(!root)return; const data=tripMapData(), rect=root.getBoundingClientRect(); const fit=mapFit(mapFitDataPoints(data,false),rect.width||320,rect.height||360);
-    tjMapState={root:root,data:data,zoom:fit.zoom,center:fit.center,filters:{targets:true,tops:true,plan:false,events:true,route:true},typeFilters:{fuel:true,lodging:true,expense:true,pause:true,note:true,arrival:true,boundary:true},detailKey:'',drag:null,pointers:new Map(),pinch:null,skipMapClickUntil:0,userMoved:false};
+    tjMapState={root:root,data:data,zoom:fit.zoom,center:fit.center,filters:{targets:true,tops:true,plan:false,events:true,route:true},typeFilters:{fuel:true,ferry:true,lodging:true,food:true,arrival:true},detailKey:'',drag:null,pointers:new Map(),pinch:null,skipMapClickUntil:0,userMoved:false};
     installTripMapInteractions(tjMapState); renderTripMapLayer(tjMapState);
   }
   function refreshTripMap(forceFit){
@@ -3809,6 +3848,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       if(familyView && !['open-journal','open-report','entry-detail','view-photo','open-highlight','print-report'].includes(act)){ toast('Rodinný náhled je pouze ke čtení.'); return; }
       if(act==='open-journal') renderJournal();
       else if(act==='open-report') renderTripReport();
+      else if(act==='reports-menu') openReportsMenu();
       else if(act==='print-report') printTripReport();
       else if(act==='start'||act==='end'){
         /* v130: start/konec obsluhuje primárně pointerup (viz níže) – klik zde
@@ -7618,6 +7658,12 @@ body.family-view [data-tj-action="end"]{display:none!important}
 .tj-map-typepop[hidden]{display:none}
 .tj-map-typepop button{width:34px;height:34px;padding:0;border:1px solid #3a4a60;border-radius:9px;background:#141e2c;color:#cfe2f7;font-size:15px;opacity:.42;cursor:pointer}
 .tj-map-typepop button.active{opacity:1;border-color:#69afff;background:#1c2f47}
+/* v137: rozcestník Reporty – dvě velké dlaždice. */
+.tj-reports-menu{display:grid;gap:10px;padding:4px 0}
+.tj-reports-menu button{display:grid;grid-template-columns:44px 1fr;grid-template-rows:auto auto;gap:2px 12px;align-items:center;padding:14px;border:1px solid #39516f;border-radius:14px;background:#162335;color:#eaf2fb;text-align:left;cursor:pointer}
+.tj-reports-menu button b{grid-row:1/3;font-size:26px;text-align:center}
+.tj-reports-menu button span{font-size:16px;font-weight:800}
+.tj-reports-menu button small{color:#9db2cb;font-size:12px}
 /* v133: papírový výdajový report a tiskový arch. */
 .tj-report-paper{background:#fdfaf2;color:#26241e;border-radius:12px;padding:13px 14px;margin:12px 0;border:1px solid #e6dfcc;box-shadow:0 6px 20px #0006}
 .tj-report-paper h3{margin:13px 0 6px;font-size:14.5px;color:#3c3526;border-bottom:2px solid #d8d2c2;padding-bottom:3px}
