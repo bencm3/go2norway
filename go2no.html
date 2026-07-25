@@ -4,6 +4,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
 <!-- go2no v146: dlaždice „Zápis během cesty“ na kartách cílů má místo písmen „Ab“ symbol dolaru (tvar dlaždice, barva i velikost zůstávají). -->
+<!-- go2no v154: palivové upomínky na kartách cílů zrušeny. Bílý štítek „Palivo: přibližně km …“ se už nevykresluje, tabulka předpočítaných upomínek je ze souboru pryč a dříve uložené štítky se z etap při načtení odstraní. Dopředu odhadovaný plán tankování se v praxi rozcházel se skutečností; stav nádrže se sleduje na cestě. -->
+<!-- go2no v153: stabilita exportu mapy. Po prvním exportu telefonu docházela paměť a další pokus skončil pádem karty (obrazovka ztmavla, nic se neuložilo). Příčiny: velká plátna, stovky současně načítaných dlaždic a plátno držené v paměti i po uložení. Nyní menší stropy (plakát ~1885×4200 px, snímek do 6 Mpx), dlaždice se stahují po dávkách nejvýše šesti a hned se uvolňují, plátno se po uložení zahodí a souběžné spuštění exportu je blokované. -->
 <!-- go2no v152: export mapy má dvě jasné volby místo stupňů zvětšení – „Aktuální výřez“ (co je vidět na displeji, ostřeji, PNG) a „Celá trasa (plakát)“, která si výřez i přiblížení dopočítá sama ze všech dat bez ohledu na aktuální zobrazení (u této cesty zhruba 2245×5000 px, ~200 dlaždic, JPEG kolem 4 MB místo 47MB PNG). Symboly se zvětšují odmocninou, zbylé překryvy se rozestrkají. -->
 <!-- go2no v151: plakátový export mapy. Tlačítko 📸 bez voleb exportuje aktuální výřez jako velký plakát (na telefonu zhruba 3300×6000 px, ~20 Mpx): export se počítá ve větším logickém plátně a s hlubším přiblížením dlaždic (o cca 3 úrovně), takže podklad má jemnost jako přiblížený displej, body se od sebe geograficky vzdálí a symboly rostou jen odmocninou zvětšení. Doplněno rozestrkání zbylých překryvů a emoji font pro plátno – bez něj se trajekty kreslily jako prázdné rámečky. -->
 <!-- go2no v150: v mapě se kreslí pouze pět užitečných typů záznamů (tankování, trajekty, noclehy, jídlo, příjezdy k cílům), každý navíc vypínatelný filtrem. Parkovné, vstupy a jiné drobné útraty, poznámky, fotopauzy i začátek a konec cesty se do mapy nekreslí vůbec; v deníku a přehledech zůstávají a modrá stopa se dál počítá ze všech bodů. -->
@@ -3596,11 +3598,18 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const root=st.root, r=root.getBoundingClientRect();
     const vw=Math.max(1,Math.round(r.width)), vh=Math.max(1,Math.round(r.height));
     const all=(mode==='all');
-    const MAX_DIM=all?5000:3000, MAX_AREA=all?12e6:8e6, MAX_TILES=500, PAD=all?90:0;
+    /* v153: nižší stropy plátna i počtu dlaždic. Předchozí velikosti (8–12 Mpx,
+       až 500 dlaždic současně) telefon po prvním exportu vyčerpaly a další pokus
+       skončil pádem karty – „obrazovka zatáhne a nic se neuloží“. */
+    const MAX_DIM=all?4200:2600, MAX_AREA=all?9e6:6e6, MAX_TILES=300, PAD=all?80:0;
+    if(window.__g2nMapExportBusy){ toast('Export už probíhá, počkej na dokončení.'); return; }
+    window.__g2nMapExportBusy=true;
+    const release=()=>{ window.__g2nMapExportBusy=false; };
+    window.setTimeout(()=>{ if(window.__g2nMapExportBusy) release(); },180000);
     let W,H,zExp,center;
     if(all){
       const pts=mapFitDataPoints(st.data,false).filter(p=>Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lon)));
-      if(pts.length<2){ toast('Pro plakát zatím není dost bodů.'); return; }
+      if(pts.length<2){ toast('Pro plakát zatím není dost bodů.'); release(); return; }
       const base=mapProject(0,0,1)&&1;
       const ps=pts.map(p=>mapProject(p.lat,p.lon,base));
       const xs=ps.map(p=>p.x), ys=ps.map(p=>p.y);
@@ -3628,23 +3637,33 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     toast((all?'Připravuji plakát celé trasy ':'Připravuji snímek ')+W+'×'+H+' px…');
     const canvas=document.createElement('canvas'); canvas.width=W; canvas.height=H;
     const ctx=canvas.getContext&&canvas.getContext('2d');
-    if(!ctx){ toast('Snímek se nepodařilo vytvořit.'); return; }
+    if(!ctx){ toast('Snímek se nepodařilo vytvořit.'); release(); return; }
     ctx.fillStyle='#aad3df'; ctx.fillRect(0,0,W,H);
     const n=2**tileZoom, cP=mapProject(center.lat,center.lon,tileZoom);
     const proj=(lat,lon)=>{ const q=mapProject(lat,lon,tileZoom); return {x:(q.x-cP.x)*tileScale+W/2, y:(q.y-cP.y)*tileScale+H/2}; };
     const at=p=>proj(p.lat,p.lon);
     const tMinX=Math.floor((cP.x-(W/2)/tileScale)/TJ_TILE_SIZE),tMaxX=Math.floor((cP.x+(W/2)/tileScale)/TJ_TILE_SIZE);
     const tMinY=Math.floor((cP.y-(H/2)/tileScale)/TJ_TILE_SIZE),tMaxY=Math.floor((cP.y+(H/2)/tileScale)/TJ_TILE_SIZE);
-    const ds=TJ_TILE_SIZE*tileScale, jobs=[];
+    const ds=TJ_TILE_SIZE*tileScale, queue=[];
     for(let ty=tMinY;ty<=tMaxY;ty++){ if(ty<0||ty>=n)continue; for(let tx=tMinX;tx<=tMaxX;tx++){
       const wrap=mod(tx,n), sub=['a','b','c'][mod(tx+ty,3)];
-      const dx=(tx*TJ_TILE_SIZE-cP.x)*tileScale+W/2, dy=(ty*TJ_TILE_SIZE-cP.y)*tileScale+H/2;
-      jobs.push(new Promise(res=>{ const img=new Image(); img.crossOrigin='anonymous';
-        img.onload=()=>{ try{ctx.drawImage(img,dx,dy,ds,ds);}catch(_){ } res(); };
-        img.onerror=()=>res();
-        img.src=`https://${sub}.tile.openstreetmap.org/${tileZoom}/${wrap}/${ty}.png`; }));
+      queue.push({url:`https://${sub}.tile.openstreetmap.org/${tileZoom}/${wrap}/${ty}.png`,
+        dx:(tx*TJ_TILE_SIZE-cP.x)*tileScale+W/2, dy:(ty*TJ_TILE_SIZE-cP.y)*tileScale+H/2});
     }}
-    Promise.all(jobs).then(()=>{
+    /* v153: dlaždice se stahují po dávkách (nejvýše šest současně) a každý obrázek
+       se hned po vykreslení uvolní. Dřívější varianta držela v paměti stovky
+       obrázků naráz, což byla druhá polovina příčiny pádů. */
+    let qi=0;
+    const loadOne=()=>new Promise(res=>{
+      const job=queue[qi++]; if(!job){ res(); return; }
+      const img=new Image(); img.crossOrigin='anonymous';
+      const done=()=>{ try{ img.onload=img.onerror=null; img.src=''; }catch(_){ } res(); };
+      img.onload=()=>{ try{ctx.drawImage(img,job.dx,job.dy,ds,ds);}catch(_){ } done(); };
+      img.onerror=done;
+      img.src=job.url;
+    });
+    const worker=async()=>{ while(qi<queue.length){ await loadOne(); } };
+    Promise.all(Array.from({length:Math.min(6,queue.length||1)},worker)).then(()=>{
       if(st.filters.plan)(st.data.plannedSegments||[]).forEach(seg=>{ if(!Array.isArray(seg)||seg.length<2)return;
         ctx.beginPath(); seg.map(at).forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
         ctx.setLineDash([9*M,7*M]); ctx.lineWidth=3.1*M; ctx.strokeStyle='rgba(242,173,78,.88)'; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke(); ctx.setLineDash([]); });
@@ -3677,11 +3696,16 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       ctx.fillStyle='rgba(255,255,255,.85)'; ctx.fillRect(W-tw-14*M,H-20*M,tw+14*M,20*M);
       ctx.fillStyle='#333'; ctx.fillText(att,W-7*M,H-6*M);
       const type=all?'image/jpeg':'image/png', ext=all?'jpg':'png';
-      canvas.toBlob(blob=>{ if(!blob){ toast('Obrázek se nepodařilo vytvořit – zkus menší výřez.'); return; }
+      canvas.toBlob(blob=>{
+        /* Plátno se hned uvolní, jinak zůstane v paměti až do dalšího uklizení
+           a druhý export už nemá kam alokovat. */
+        const free=()=>{ try{ canvas.width=1; canvas.height=1; }catch(_){ } release(); };
+        if(!blob){ toast('Obrázek se nepodařilo vytvořit – zkus menší výřez.'); free(); return; }
         downloadBlob(blob,'go2no_mapa_'+(all?'cela-trasa_':'')+exportDateParts(nowIso()).stamp+'_'+W+'x'+H+'.'+ext);
         toast((all?'Plakát ':'Snímek ')+W+'×'+H+' px se stahuje.');
+        window.setTimeout(free,1500);
       },type,all?0.92:undefined);
-    }).catch(()=>toast('Obrázek se nepodařilo vytvořit.'));
+    }).catch(()=>{ toast('Obrázek se nepodařilo vytvořit.'); try{ canvas.width=1; canvas.height=1; }catch(_){ } release(); });
   }
   function mapMarkerHTML(p,pos){
     const paired=p.pairRole?' is-paired pair-'+escAttr(p.pairRole):'';
@@ -4223,35 +4247,16 @@ let USERIMG = {};   // uživatelem přidané obrázky (id -> dataURL), v Indexed
 // ---------- palivový plán (v77) ----------
 // Výpočet: první plná nádrž v km 36, dále konzervativní pracovní interval cca 300 km.
 // Kilometry trajektů se do výpočtu nezapočítávají; text je pouze viditelný štítek v poznámce karty.
-const FUEL_ALERTS={
-  1:'Palivo: do plna km 36; dále přibližně km 336.',
-  2:'Palivo: přibližně km 6 a km 306.',
-  3:'Palivo: přibližně km 216; před Hirtshalsem raději do plna.',
-  8:'Palivo: přibližně km 6.',
-  13:'Palivo: přibližně km 13.',
-  17:'Palivo: přibližně km 61.',
-  21:'Palivo: přibližně km 16.',
-  23:'Palivo: přibližně km 56; Lom je vhodný jistý bod.',
-  25:'Palivo: přibližně km 66.',
-  28:'Palivo: přibližně km 121.',
-  33:'Palivo: přibližně km 59; před řidšími oblastmi dál na sever.',
-  34:'Palivo: přibližně km 57.',
-  36:'Palivo: přibližně km 3.',
-  37:'Palivo: přibližně km 63; Bodø před trajektem na Lofoty.',
-  39:'Palivo: přibližně km 78; neodkládej před dalším trajektem.',
-  40:'Palivo: přibližně km 208; Senja / Troms.',
-  42:'Palivo: přibližně km 199; před Nordkappem raději do plna.',
-  43:'Palivo: přibližně km 78, 378 a 678; nejkritičtější dlouhý úsek Finnmarku.',
-  44:'Palivo: přibližně km 138, 438 a 738; dálniční tranzit E4.',
-  45:'Palivo: přibližně km 297 a 597; poslední bezpečný bod před Trelleborgem.',
-  46:'Palivo: přibližně km 113 a 413.'
-};
+/* v154: tabulka palivových upomínek odstraněna – karty cílů ji už nezobrazují
+   a plán tankování se dopředu neodhaduje. */
 function applyFuelAlerts(list){
+  /* v154: palivové upomínky na kartách cílů se zrušily. Dopředu odhadovaný plán
+     tankování se v praxi rozešel se skutečností a jen zabíral místo; stav nádrže
+     se sleduje na cestě podle motorky. Funkce už žádný štítek nepřiřazuje a
+     naopak dříve uložené štítky z etap odstraní, takže zmizí i ze starých dat. */
   let changed=false;
   (list||[]).forEach(leg=>{
-    const key=String(Number(leg&&leg.num)||'');
-    const next=FUEL_ALERTS[key]||'';
-    if(next && leg.fuel_alert!==next){ leg.fuel_alert=next; changed=true; }
+    if(leg && leg.fuel_alert){ delete leg.fuel_alert; changed=true; }
   });
   return changed;
 }
@@ -4928,9 +4933,9 @@ function cardHTML(leg){
   const facts = ((leg.km||ph||editMode)?`<div class="fact"><b class="ed" data-leg="${leg.i}" data-field="km" data-ph="—">${esc(leg.km)}</b><span>km</span></div>`:'')
               + ((leg.drive||ph||editMode)?`<div class="fact"><b class="ed" data-leg="${leg.i}" data-field="drive" data-ph="—">${esc(leg.drive)}</b><span>jízda</span></div>`:'');
   const noteText=`<span class="note-text ed" data-leg="${leg.i}" data-field="note" data-ph="Poznámka…">${nl(leg.note)}</span>`;
-  const note = leg.fuel_alert
-    ? `<div class="note has-fuel-alert"><span class="fuel-alert" title="Palivový plán: první plná nádrž km 36, další body po přibližně 300 silničních km; trajekty bez spotřeby">⛽ ${esc(leg.fuel_alert)}</span>${noteText}</div>`
-    : `<div class="note ed" data-leg="${leg.i}" data-field="note" data-ph="Poznámka…">${nl(leg.note)}</div>`;
+  /* v154: karta cíle už palivový štítek nevykresluje ani tehdy, kdyby v datech
+     nějaký zbyl. */
+  const note = `<div class="note ed" data-leg="${leg.i}" data-field="note" data-ph="Poznámka…">${nl(leg.note)}</div>`;
   const gps = (leg.from_gps||leg.to_gps||ph||editMode)?`<div class="gps">
       <span>📍 <span class="ed gpscoord" data-leg="${leg.i}" data-field="from_gps" data-ph="GPS odkud" title="Klepnutím otevřít GPS v mapě">${esc(leg.from_gps)}</span></span>
       <span class="arr">→</span>
