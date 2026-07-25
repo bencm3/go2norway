@@ -4,6 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
 <!-- go2no v146: dlaždice „Zápis během cesty“ na kartách cílů má místo písmen „Ab“ symbol dolaru (tvar dlaždice, barva i velikost zůstávají). -->
+<!-- go2no v152: export mapy má dvě jasné volby místo stupňů zvětšení – „Aktuální výřez“ (co je vidět na displeji, ostřeji, PNG) a „Celá trasa (plakát)“, která si výřez i přiblížení dopočítá sama ze všech dat bez ohledu na aktuální zobrazení (u této cesty zhruba 2245×5000 px, ~200 dlaždic, JPEG kolem 4 MB místo 47MB PNG). Symboly se zvětšují odmocninou, zbylé překryvy se rozestrkají. -->
 <!-- go2no v151: plakátový export mapy. Tlačítko 📸 bez voleb exportuje aktuální výřez jako velký plakát (na telefonu zhruba 3300×6000 px, ~20 Mpx): export se počítá ve větším logickém plátně a s hlubším přiblížením dlaždic (o cca 3 úrovně), takže podklad má jemnost jako přiblížený displej, body se od sebe geograficky vzdálí a symboly rostou jen odmocninou zvětšení. Doplněno rozestrkání zbylých překryvů a emoji font pro plátno – bez něj se trajekty kreslily jako prázdné rámečky. -->
 <!-- go2no v150: v mapě se kreslí pouze pět užitečných typů záznamů (tankování, trajekty, noclehy, jídlo, příjezdy k cílům), každý navíc vypínatelný filtrem. Parkovné, vstupy a jiné drobné útraty, poznámky, fotopauzy i začátek a konec cesty se do mapy nekreslí vůbec; v deníku a přehledech zůstávají a modrá stopa se dál počítá ze všech bodů. -->
 <!-- go2no v149: snímek mapy ve vyšším rozlišení. Tlačítko 📸 nabízí volbu 1× displej / 2× plakát / 4× tisk A4; pro vyšší volby se stahují dlaždice o jednu až dvě úrovně přiblížení výš (stejné území, čtyřikrát až šestnáctkrát více dlaždic), takže popisky v podkladové mapě zůstávají ostré i po zvětšení. Kresba trasy a bodů se počítá ve stejných proporcích, jen vektorově ostře. Počet stahovaných dlaždic je zastropovaný. -->
@@ -3582,38 +3583,54 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   /* v132: snímek aktuálního výřezu mapy do PNG – dlaždice OSM (crossorigin),
      plán, stopa, body i symboly přesně podle zapnutých vrstev a typových filtrů.
      Selhavší dlaždice se přeskočí, výsledek nese povinnou attribuci OSM. */
-  function exportTripMapPng(st){
-    /* v151: plakátový export. Dřívější řešení kreslilo na větší plátno tytéž
-       souřadnice jako na displeji – rozlišení podkladu sice povyrostlo, ale
-       symboly se překrývaly úplně stejně, protože jejich vzájemná vzdálenost
-       v pixelech zůstávala malá. Nyní se export počítá ve VĚTŠÍM logickém
-       plátně a s odpovídajícím přiblížením: dlaždice se stahují z hlubší úrovně,
-       body se od sebe geograficky vzdálí a symboly rostou jen odmocninou
-       zvětšení, takže se přestanou překrývat. Velikost se volí co největší,
-       jakou plátno v telefonu ještě unese. */
+  function exportTripMapPng(st,mode){
+    /* v152: dvě samostatné volby exportu, žádné ruční stupně zvětšení.
+         mode 'view' – aktuální výřez tak, jak je vidět na displeji, jen ostřeji.
+         mode 'all'  – CELÁ trasa bez ohledu na aktuální výřez: výřez i přiblížení
+                       se dopočítají tak, aby se všechna data vešla do velkého
+                       plátna. Právě tohle dřívější verze neuměly – vždycky
+                       vycházely z toho, co bylo zrovna na displeji.
+       Symboly se zvětšují jen odmocninou zvětšení a případné zbylé překryvy se
+       rozestrkají, takže na plakátu stojí daleko od sebe. Plakát se ukládá jako
+       JPEG (PNG téže velikosti měl přes 40 MB a telefon se s ním trápil). */
     const root=st.root, r=root.getBoundingClientRect();
-    const w=Math.max(1,Math.round(r.width)), h=Math.max(1,Math.round(r.height));
-    const MAX_DIM=6000, MAX_AREA=22e6, MAX_TILES=900;
-    let F=Math.min(MAX_DIM/Math.max(w,h), Math.sqrt(MAX_AREA/(w*h)));
-    F=Math.max(1,Math.min(10,F));
-    let W=Math.round(w*F), H=Math.round(h*F);
-    let zExp=Math.min(TJ_MAX_ZOOM, st.zoom+Math.log2(F));
-    let tileZoom=clamp(Math.round(zExp),TJ_MIN_ZOOM,TJ_MAX_ZOOM);
-    let tileScale=2**(zExp-tileZoom);
-    /* Pojistka proti stahování tisíců dlaždic z mapového serveru. */
-    while((Math.ceil(W/tileScale/TJ_TILE_SIZE)+1)*(Math.ceil(H/tileScale/TJ_TILE_SIZE)+1)>MAX_TILES && F>1.2){
-      F*=0.8; W=Math.round(w*F); H=Math.round(h*F);
+    const vw=Math.max(1,Math.round(r.width)), vh=Math.max(1,Math.round(r.height));
+    const all=(mode==='all');
+    const MAX_DIM=all?5000:3000, MAX_AREA=all?12e6:8e6, MAX_TILES=500, PAD=all?90:0;
+    let W,H,zExp,center;
+    if(all){
+      const pts=mapFitDataPoints(st.data,false).filter(p=>Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lon)));
+      if(pts.length<2){ toast('Pro plakát zatím není dost bodů.'); return; }
+      const base=mapProject(0,0,1)&&1;
+      const ps=pts.map(p=>mapProject(p.lat,p.lon,base));
+      const xs=ps.map(p=>p.x), ys=ps.map(p=>p.y);
+      const minx=Math.min(...xs), maxx=Math.max(...xs), miny=Math.min(...ys), maxy=Math.max(...ys);
+      const sx=Math.max(1e-6,maxx-minx), sy=Math.max(1e-6,maxy-miny);
+      const aspect=sx/sy;
+      H=Math.round(Math.min(MAX_DIM,Math.sqrt(MAX_AREA/Math.max(.15,aspect))));
+      W=Math.round(Math.min(MAX_DIM,H*aspect));
+      if(W<900){ W=900; H=Math.round(Math.min(MAX_DIM,W/Math.max(.15,aspect))); }
+      zExp=Math.min(TJ_MAX_ZOOM,base+Math.min(Math.log2((W-2*PAD)/sx),Math.log2((H-2*PAD)/sy)));
+      center=mapUnproject((minx+maxx)/2,(miny+maxy)/2,base);
+    } else {
+      let F=Math.min(MAX_DIM/Math.max(vw,vh), Math.sqrt(MAX_AREA/(vw*vh)));
+      F=Math.max(1,Math.min(6,F));
+      W=Math.round(vw*F); H=Math.round(vh*F);
       zExp=Math.min(TJ_MAX_ZOOM, st.zoom+Math.log2(F));
-      tileZoom=clamp(Math.round(zExp),TJ_MIN_ZOOM,TJ_MAX_ZOOM);
-      tileScale=2**(zExp-tileZoom);
+      center=st.center;
     }
-    const M=Math.max(1,Math.sqrt(F));  /* zvětšení symbolů a čar */
-    toast('Připravuji plakát '+W+'×'+H+' px…');
+    const tilesAt=z=>{ const tz=clamp(Math.round(z),TJ_MIN_ZOOM,TJ_MAX_ZOOM), ts=2**(z-tz);
+      return (Math.ceil(W/ts/TJ_TILE_SIZE)+2)*(Math.ceil(H/ts/TJ_TILE_SIZE)+2); };
+    let guard=0;
+    while(tilesAt(zExp)>MAX_TILES && guard++<40){ W=Math.round(W*0.85); H=Math.round(H*0.85); zExp-=Math.log2(1/0.85); }
+    const tileZoom=clamp(Math.round(zExp),TJ_MIN_ZOOM,TJ_MAX_ZOOM), tileScale=2**(zExp-tileZoom);
+    const M=Math.max(1,Math.min(3.2,Math.sqrt(all?(W*H)/(vw*vh):(W/vw))));
+    toast((all?'Připravuji plakát celé trasy ':'Připravuji snímek ')+W+'×'+H+' px…');
     const canvas=document.createElement('canvas'); canvas.width=W; canvas.height=H;
     const ctx=canvas.getContext&&canvas.getContext('2d');
     if(!ctx){ toast('Snímek se nepodařilo vytvořit.'); return; }
     ctx.fillStyle='#aad3df'; ctx.fillRect(0,0,W,H);
-    const n=2**tileZoom, cP=mapProject(st.center.lat,st.center.lon,tileZoom);
+    const n=2**tileZoom, cP=mapProject(center.lat,center.lon,tileZoom);
     const proj=(lat,lon)=>{ const q=mapProject(lat,lon,tileZoom); return {x:(q.x-cP.x)*tileScale+W/2, y:(q.y-cP.y)*tileScale+H/2}; };
     const at=p=>proj(p.lat,p.lon);
     const tMinX=Math.floor((cP.x-(W/2)/tileScale)/TJ_TILE_SIZE),tMaxX=Math.floor((cP.x+(W/2)/tileScale)/TJ_TILE_SIZE);
@@ -3637,13 +3654,10 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
         line.forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,3*M,0,Math.PI*2); ctx.fillStyle='#dff2ff'; ctx.fill(); ctx.lineWidth=2*M; ctx.strokeStyle='#367bc3'; ctx.stroke(); }); }
       const palette={fuel:['#15496e','#75c9ff'],lodging:['#17543b','#8fe0b1'],accommodation:['#17543b','#8fe0b1'],food:['#674416','#ffd278'],parking:['#1e53a0','#8dbbff'],ferry:['#1c5472','#8bd6ff'],pause:['#50385f','#e0a6ff'],start:['#1b693f','#9ce5b8'],note:['#172b45','#77baff'],other:['#3e4655','#b7c3d2']};
       const show=[]; if(st.filters.tops)show.push(...st.data.tops); if(st.filters.targets)show.push(...st.data.targets); if(st.filters.events)show.push(...st.data.events.filter(p=>mapEventTypeVisible(st,p)));
-      /* Rozestrkání zbylých překryvů ve zvětšeném plátně. */
       const placed=[];
-      const spread=q=>{ const min=30*M; for(let k=0;k<placed.length;k++){ const o=placed[k], dx=q.x-o.x, dy=q.y-o.y, d=Math.hypot(dx,dy);
+      const spread=q=>{ const min=32*M; for(let k=0;k<placed.length;k++){ const o=placed[k], dx=q.x-o.x, dy=q.y-o.y, d=Math.hypot(dx,dy);
           if(d<min){ const a=d>0.001?Math.atan2(dy,dx):(k*2.399); q={x:o.x+Math.cos(a)*min, y:o.y+Math.sin(a)*min}; k=-1; } }
         placed.push(q); return q; };
-      /* Emoji se v plátně vykreslí jen s výslovným emoji fontem – bez něj
-         zůstávaly například trajekty jako prázdné rámečky. */
       const EMOJI='"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji","Twemoji Mozilla",sans-serif';
       show.forEach(p=>{ let q=at(p); if(q.x<-60*M||q.x>W+60*M||q.y<-60*M||q.y>H+60*M)return; q=spread(q);
         if(p.kind==='target'){ const col=p.status==='visited'?['#207246','#b9ffd3']:p.status==='skipped'?['#353d49','#adb7c4']:['#1e5fae','#b9ddff'];
@@ -3662,10 +3676,12 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       const att='© OpenStreetMap contributors', tw=ctx.measureText(att).width;
       ctx.fillStyle='rgba(255,255,255,.85)'; ctx.fillRect(W-tw-14*M,H-20*M,tw+14*M,20*M);
       ctx.fillStyle='#333'; ctx.fillText(att,W-7*M,H-6*M);
-      canvas.toBlob(blob=>{ if(!blob){ toast('Plakát se nepodařilo vytvořit – zkus menší výřez.'); return; }
-        downloadBlob(blob,'go2no_mapa_'+exportDateParts(nowIso()).stamp+'_'+W+'x'+H+'.png'); toast('Plakát '+W+'×'+H+' px se stahuje.');
-      },'image/png');
-    }).catch(()=>toast('Plakát se nepodařilo vytvořit.'));
+      const type=all?'image/jpeg':'image/png', ext=all?'jpg':'png';
+      canvas.toBlob(blob=>{ if(!blob){ toast('Obrázek se nepodařilo vytvořit – zkus menší výřez.'); return; }
+        downloadBlob(blob,'go2no_mapa_'+(all?'cela-trasa_':'')+exportDateParts(nowIso()).stamp+'_'+W+'x'+H+'.'+ext);
+        toast((all?'Plakát ':'Snímek ')+W+'×'+H+' px se stahuje.');
+      },type,all?0.92:undefined);
+    }).catch(()=>toast('Obrázek se nepodařilo vytvořit.'));
   }
   function mapMarkerHTML(p,pos){
     const paired=p.pairRole?' is-paired pair-'+escAttr(p.pairRole):'';
@@ -3731,7 +3747,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   function renderTripMap(forceFit){
     openMapHistoryState();
     document.body.classList.add('g2n-trip-map-open');
-    const html=`<section class="tj-map-screen"><header class="tj-map-screen-head"><div><b>Mapa cesty</b></div><button class="tj-map-close" data-tj-action="close-map" aria-label="Zavřít mapu" title="Zavřít mapu">×<span>Zavřít mapu</span></button></header><div class="tj-map-screen-body"><div class="tj-map-shell"><div class="tj-map-toolbar"><button class="active" data-tj-map-filter="targets" title="Zobrazit nebo skrýt cíle itineráře">ITINERÁŘ</button><button class="active" data-tj-map-filter="tops" title="Zobrazit nebo skrýt TOP60">TOP60</button><button data-tj-map-filter="plan" title="Zobrazit nebo skrýt plánovanou linii">PLÁN</button><button class="active" data-tj-map-filter="events" title="Zobrazit nebo skrýt záznamy deníku">ZÁZNAMY</button><button class="active" data-tj-map-filter="route" title="Zobrazit nebo skrýt projetou stopu">STOPA</button><button data-tj-map-typemenu title="Filtr typů záznamů">FILTR</button></div><div class="tj-map-typepop" hidden><button class="active" data-tj-map-type="fuel" title="Tankování">⛽</button><button class="active" data-tj-map-type="ferry" title="Trajekty">⛴</button><button class="active" data-tj-map-type="lodging" title="Noclehy">🛏</button><button class="active" data-tj-map-type="food" title="Jídlo">🍽</button><button class="active" data-tj-map-type="arrival" title="Příjezdy k cílům">✓</button></div><div class="tj-map-viewport" id="tjTripMap"><div class="tj-map-tiles"></div><svg class="tj-map-overlay"></svg><div class="tj-map-markers"></div><div class="tj-map-zoom"><button data-tj-map-control="in" aria-label="Přiblížit" title="Přiblížit">+</button><button data-tj-map-control="out" aria-label="Oddálit" title="Oddálit">−</button><button data-tj-map-control="snapshot" aria-label="Uložit snímek mapy" title="Uložit aktuální výřez mapy jako PNG">📸</button></div><div class="tj-map-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div></div><div id="tjMapDetail"></div></div></section>`;
+    const html=`<section class="tj-map-screen"><header class="tj-map-screen-head"><div><b>Mapa cesty</b></div><button class="tj-map-close" data-tj-action="close-map" aria-label="Zavřít mapu" title="Zavřít mapu">×<span>Zavřít mapu</span></button></header><div class="tj-map-screen-body"><div class="tj-map-shell"><div class="tj-map-toolbar"><button class="active" data-tj-map-filter="targets" title="Zobrazit nebo skrýt cíle itineráře">ITINERÁŘ</button><button class="active" data-tj-map-filter="tops" title="Zobrazit nebo skrýt TOP60">TOP60</button><button data-tj-map-filter="plan" title="Zobrazit nebo skrýt plánovanou linii">PLÁN</button><button class="active" data-tj-map-filter="events" title="Zobrazit nebo skrýt záznamy deníku">ZÁZNAMY</button><button class="active" data-tj-map-filter="route" title="Zobrazit nebo skrýt projetou stopu">STOPA</button><button data-tj-map-typemenu title="Filtr typů záznamů">FILTR</button></div><div class="tj-map-exportpop" hidden><button data-tj-map-export="view">Aktuální výřez</button><button data-tj-map-export="all">Celá trasa (plakát)</button></div><div class="tj-map-typepop" hidden><button class="active" data-tj-map-type="fuel" title="Tankování">⛽</button><button class="active" data-tj-map-type="ferry" title="Trajekty">⛴</button><button class="active" data-tj-map-type="lodging" title="Noclehy">🛏</button><button class="active" data-tj-map-type="food" title="Jídlo">🍽</button><button class="active" data-tj-map-type="arrival" title="Příjezdy k cílům">✓</button></div><div class="tj-map-viewport" id="tjTripMap"><div class="tj-map-tiles"></div><svg class="tj-map-overlay"></svg><div class="tj-map-markers"></div><div class="tj-map-zoom"><button data-tj-map-control="in" aria-label="Přiblížit" title="Přiblížit">+</button><button data-tj-map-control="out" aria-label="Oddálit" title="Oddálit">−</button><button data-tj-map-control="snapshot" aria-label="Uložit snímek mapy" title="Uložit aktuální výřez mapy jako PNG">📸</button></div><div class="tj-map-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div></div><div id="tjMapDetail"></div></div></section>`;
     openJournalModal('Mapa cesty',html,'map');
     requestAnimationFrame(()=>initTripMap(forceFit!==false));
   }
@@ -3843,6 +3859,10 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       }
       const filter=e.target.closest('[data-tj-map-filter]');
       if(filter){ const k=filter.dataset.tjMapFilter; st.filters[k]=!st.filters[k]; renderTripMapLayer(st); return; }
+      const exp=e.target.closest('[data-tj-map-export]');
+      if(exp){ const pop=shell.querySelector('.tj-map-exportpop'); if(pop)pop.hidden=true;
+        shell.querySelector('[data-tj-map-control="snapshot"]')?.classList.remove('active');
+        exportTripMapPng(st,exp.dataset.tjMapExport); return; }
       const typeMenu=e.target.closest('[data-tj-map-typemenu]');
       if(typeMenu){ const pop=shell.querySelector('.tj-map-typepop'); if(pop){ pop.hidden=!pop.hidden; typeMenu.classList.toggle('active',!pop.hidden); } return; }
       const typeBtn=e.target.closest('[data-tj-map-type]');
@@ -3850,10 +3870,12 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       /* Klepnutí jinam do mapy panel filtrů zase sbalí. */
       const popOpen=shell.querySelector('.tj-map-typepop:not([hidden])');
       if(popOpen){ popOpen.hidden=true; shell.querySelector('[data-tj-map-typemenu]')?.classList.remove('active'); }
+      const expOpen=shell.querySelector('.tj-map-exportpop:not([hidden])');
+      if(expOpen){ expOpen.hidden=true; shell.querySelector('[data-tj-map-control="snapshot"]')?.classList.remove('active'); }
       const control=e.target.closest('[data-tj-map-control]');
       if(control){
         const a=control.dataset.tjMapControl;
-        if(a==='snapshot'){ exportTripMapPng(st); return; }
+        if(a==='snapshot'){ const pop=shell.querySelector('.tj-map-exportpop'); if(pop){ pop.hidden=!pop.hidden; control.classList.toggle('active',!pop.hidden); } return; }
         if(a==='fit'){ const r=root.getBoundingClientRect(),fit=mapFit(mapFitDataPoints(st.data,false),r.width,r.height); st.center=fit.center;st.zoom=fit.zoom;st.userMoved=false; }
         else if(a==='svalbard'){ const p=(st.data.tops||[]).find(x=>x.item&&x.item.id==='longyearbyen'); if(p){ st.center={lat:p.lat,lon:p.lon}; st.zoom=8; st.detailKey=p.key; st.userMoved=true; } }
         else { const old=st.zoom; st.zoom=clamp(st.zoom+(a==='in'?1:-1),TJ_MIN_ZOOM,TJ_MAX_ZOOM); if(st.zoom!==old){ /* střed zůstává */ } }
@@ -7900,6 +7922,10 @@ body.family-view [data-tj-action="end"]{display:none!important}
 .tj-map-typepop[hidden]{display:none}
 .tj-map-typepop button{width:34px;height:34px;padding:0;border:1px solid #3a4a60;border-radius:9px;background:#141e2c;color:#cfe2f7;font-size:15px;opacity:.42;cursor:pointer}
 .tj-map-typepop button.active{opacity:1;border-color:#69afff;background:#1c2f47}
+/* v152: volba rozsahu exportu – aktuální výřez nebo celá trasa. */
+.tj-map-exportpop{position:absolute;z-index:9;top:46px;right:56px;display:flex;flex-direction:column;gap:5px;padding:6px;border-radius:12px;background:rgba(15,25,38,.95);border:1px solid #35506e;box-shadow:0 10px 24px #000a}
+.tj-map-exportpop[hidden]{display:none}
+.tj-map-exportpop button{white-space:nowrap;padding:8px 11px;border:1px solid #3a4a60;border-radius:9px;background:#141e2c;color:#cfe2f7;font-size:12.5px;cursor:pointer}
 
 /* v137: rozcestník Reporty – dvě velké dlaždice. */
 .tj-reports-menu{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:4px 0}
