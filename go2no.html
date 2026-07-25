@@ -4,6 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
 <!-- go2no v146: dlaždice „Zápis během cesty“ na kartách cílů má místo písmen „Ab“ symbol dolaru (tvar dlaždice, barva i velikost zůstávají). -->
+<!-- go2no v150: v mapě se kreslí pouze pět užitečných typů záznamů (tankování, trajekty, noclehy, jídlo, příjezdy k cílům), každý navíc vypínatelný filtrem. Parkovné, vstupy a jiné drobné útraty, poznámky, fotopauzy i začátek a konec cesty se do mapy nekreslí vůbec; v deníku a přehledech zůstávají a modrá stopa se dál počítá ze všech bodů. -->
 <!-- go2no v149: snímek mapy ve vyšším rozlišení. Tlačítko 📸 nabízí volbu 1× displej / 2× plakát / 4× tisk A4; pro vyšší volby se stahují dlaždice o jednu až dvě úrovně přiblížení výš (stejné území, čtyřikrát až šestnáctkrát více dlaždic), takže popisky v podkladové mapě zůstávají ostré i po zvětšení. Kresba trasy a bodů se počítá ve stejných proporcích, jen vektorově ostře. Počet stahovaných dlaždic je zastropovaný. -->
 <!-- go2no v148: bezpečnost a čistší nastavení. Potvrzovací dotaz před každým mazáním, exportem (CSV, HTML záloha, online export) i importem, vždy s vysvětlením následku a informací, zda a dokdy lze krok vrátit červeným tlačítkem krok zpět. Destruktivní tlačítka (výmaz deníku, tovární reset) jsou červená, aby se nepletla se synchronizací. Sekce kurzů se přesunula pod rodinný náhled dovnitř online synchronizace a ztratila vlastní rámeček; zrušeny vnořené rámečky v nastavení (syncbox, rámeček rodinného náhledu) ve prospěch lícovaných řádků a dvojice tlačítek zůstávají vedle sebe i na úzkém displeji. -->
 <!-- go2no v147: ikona poznámky (list s tužkou) vrácena do původní podoby – dočasná cenovka z v145 odstraněna. Ikony akcí jsou tím shodné s v126; jediná změna piktogramů zůstává symbol dolaru na dlaždici „Zápis během cesty“ (v146). -->
@@ -3560,9 +3561,12 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     }
     return out;
   }
-  /* v137: filtrovatelné jsou jen typy, které dávají v mapě smysl – tankování,
-     trajekty, noclehy, jídlo a příjezdy k cílům. Ostatní záznamy (drobné útraty,
-     poznámky, zastávky, začátek a konec) se zobrazují vždy a nefiltrují se. */
+  /* v150: v mapě se zobrazuje POUZE pět užitečných typů – tankování, trajekty,
+     noclehy, jídlo a příjezdy k cílům; každý z nich lze navíc vypnout filtrem.
+     Vše ostatní (parkovné, vstupy a jiné drobné útraty, poznámky, fotopauzy,
+     začátek a konec cesty) se do mapy nekreslí vůbec. Záznamy zůstávají
+     v deníku i v přehledech, jen mapu nezaplevelují; modrá stopa se dál počítá
+     ze všech bodů, takže projetá trasa zůstává celá. */
   function mapEventTypeVisible(st,p){
     if(!st||!st.typeFilters)return true;
     const e=p&&p.entry, t=e&&e.type, cat=e&&e.category;
@@ -3572,7 +3576,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     else if(t==='expense'&&cat==='ferry')key='ferry';
     else if(t==='expense'&&cat==='food')key='food';
     else if(t==='arrival')key='arrival';
-    return key?st.typeFilters[key]!==false:true;
+    return key?st.typeFilters[key]!==false:false;
   }
   /* v132: snímek aktuálního výřezu mapy do PNG – dlaždice OSM (crossorigin),
      plán, stopa, body i symboly přesně podle zapnutých vrstev a typových filtrů.
