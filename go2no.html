@@ -4,6 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
 <!-- go2no v146: dlaždice „Zápis během cesty“ na kartách cílů má místo písmen „Ab“ symbol dolaru (tvar dlaždice, barva i velikost zůstávají). -->
+<!-- go2no v155: nalezena skutečná příčina zamrzání exportu mapy – nekonečná smyčka v rozestrkávání překrývajících se značek (po každém posunu se procházení seznamu restartovalo, takže se body navzájem tlačily donekonečna a vlákno rozhraní se už neuvolnilo). Počet průchodů je nyní pevně omezený. Doplněn 15s limit na nedoručenou dlaždici a stropy plátna vráceny nahoru (plakát až ~5200 px na delší stranu, 13 Mpx), protože paměť příčinou nebyla. -->
 <!-- go2no v154: palivové upomínky na kartách cílů zrušeny. Bílý štítek „Palivo: přibližně km …“ se už nevykresluje, tabulka předpočítaných upomínek je ze souboru pryč a dříve uložené štítky se z etap při načtení odstraní. Dopředu odhadovaný plán tankování se v praxi rozcházel se skutečností; stav nádrže se sleduje na cestě. -->
 <!-- go2no v153: stabilita exportu mapy. Po prvním exportu telefonu docházela paměť a další pokus skončil pádem karty (obrazovka ztmavla, nic se neuložilo). Příčiny: velká plátna, stovky současně načítaných dlaždic a plátno držené v paměti i po uložení. Nyní menší stropy (plakát ~1885×4200 px, snímek do 6 Mpx), dlaždice se stahují po dávkách nejvýše šesti a hned se uvolňují, plátno se po uložení zahodí a souběžné spuštění exportu je blokované. -->
 <!-- go2no v152: export mapy má dvě jasné volby místo stupňů zvětšení – „Aktuální výřez“ (co je vidět na displeji, ostřeji, PNG) a „Celá trasa (plakát)“, která si výřez i přiblížení dopočítá sama ze všech dat bez ohledu na aktuální zobrazení (u této cesty zhruba 2245×5000 px, ~200 dlaždic, JPEG kolem 4 MB místo 47MB PNG). Symboly se zvětšují odmocninou, zbylé překryvy se rozestrkají. -->
@@ -3601,7 +3602,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     /* v153: nižší stropy plátna i počtu dlaždic. Předchozí velikosti (8–12 Mpx,
        až 500 dlaždic současně) telefon po prvním exportu vyčerpaly a další pokus
        skončil pádem karty – „obrazovka zatáhne a nic se neuloží“. */
-    const MAX_DIM=all?4200:2600, MAX_AREA=all?9e6:6e6, MAX_TILES=300, PAD=all?80:0;
+    const MAX_DIM=all?5200:3000, MAX_AREA=all?13e6:8e6, MAX_TILES=420, PAD=all?80:0;
     if(window.__g2nMapExportBusy){ toast('Export už probíhá, počkej na dokončení.'); return; }
     window.__g2nMapExportBusy=true;
     const release=()=>{ window.__g2nMapExportBusy=false; };
@@ -3657,9 +3658,12 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const loadOne=()=>new Promise(res=>{
       const job=queue[qi++]; if(!job){ res(); return; }
       const img=new Image(); img.crossOrigin='anonymous';
-      const done=()=>{ try{ img.onload=img.onerror=null; img.src=''; }catch(_){ } res(); };
-      img.onload=()=>{ try{ctx.drawImage(img,job.dx,job.dy,ds,ds);}catch(_){ } done(); };
+      let settled=false;
+      const done=()=>{ if(settled)return; settled=true; try{ img.onload=img.onerror=null; img.src=''; }catch(_){ } res(); };
+      img.onload=()=>{ if(settled)return; try{ctx.drawImage(img,job.dx,job.dy,ds,ds);}catch(_){ } done(); };
       img.onerror=done;
+      /* v155: nedoručená dlaždice po 15 s neblokuje zbytek exportu. */
+      window.setTimeout(done,15000);
       img.src=job.url;
     });
     const worker=async()=>{ while(qi<queue.length){ await loadOne(); } };
@@ -3673,9 +3677,20 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
         line.forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,3*M,0,Math.PI*2); ctx.fillStyle='#dff2ff'; ctx.fill(); ctx.lineWidth=2*M; ctx.strokeStyle='#367bc3'; ctx.stroke(); }); }
       const palette={fuel:['#15496e','#75c9ff'],lodging:['#17543b','#8fe0b1'],accommodation:['#17543b','#8fe0b1'],food:['#674416','#ffd278'],parking:['#1e53a0','#8dbbff'],ferry:['#1c5472','#8bd6ff'],pause:['#50385f','#e0a6ff'],start:['#1b693f','#9ce5b8'],note:['#172b45','#77baff'],other:['#3e4655','#b7c3d2']};
       const show=[]; if(st.filters.tops)show.push(...st.data.tops); if(st.filters.targets)show.push(...st.data.targets); if(st.filters.events)show.push(...st.data.events.filter(p=>mapEventTypeVisible(st,p)));
-      const placed=[];
-      const spread=q=>{ const min=32*M; for(let k=0;k<placed.length;k++){ const o=placed[k], dx=q.x-o.x, dy=q.y-o.y, d=Math.hypot(dx,dy);
-          if(d<min){ const a=d>0.001?Math.atan2(dy,dx):(k*2.399); q={x:o.x+Math.cos(a)*min, y:o.y+Math.sin(a)*min}; k=-1; } }
+      /* v155: OPRAVA ZAMRZÁNÍ. Původní rozestrkávání značek po každém posunu
+         restartovalo procházení celého seznamu (k=-1). Když leželo víc bodů blízko
+         sebe – což u celé trasy nastane vždy – posun jednoho bodu ho zatlačil do
+         jiného, ten do dalšího a cyklus se nikdy neuzavřel. Vlákno rozhraní tím
+         zůstalo navěky obsazené a karta „zatuhla“; s velikostí obrázku ani pamětí
+         to nemělo nic společného. Nyní je počet průchodů pevně omezený. */
+      const placed=[], SPREAD_PASSES=14;
+      const spread=q=>{ const min=32*M;
+        for(let pass=0;pass<SPREAD_PASSES;pass++){
+          let moved=false;
+          for(let k=0;k<placed.length;k++){ const o=placed[k], dx=q.x-o.x, dy=q.y-o.y, d=Math.hypot(dx,dy);
+            if(d<min){ const a=d>0.001?Math.atan2(dy,dx):(k*2.399); q={x:o.x+Math.cos(a)*min, y:o.y+Math.sin(a)*min}; moved=true; } }
+          if(!moved) break;
+        }
         placed.push(q); return q; };
       const EMOJI='"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji","Twemoji Mozilla",sans-serif';
       show.forEach(p=>{ let q=at(p); if(q.x<-60*M||q.x>W+60*M||q.y<-60*M||q.y>H+60*M)return; q=spread(q);
