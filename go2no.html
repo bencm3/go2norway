@@ -4,6 +4,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
 <!-- go2no v146: dlaždice „Zápis během cesty“ na kartách cílů má místo písmen „Ab“ symbol dolaru (tvar dlaždice, barva i velikost zůstávají). -->
+<!-- go2no v178: u tří noclehů byla poznámka psaná jako věta, takže se název ztrácel uprostřed – přepsány tak, aby název stál na začátku (Kjerag Lysebotn Camping – unimobuňka; Goksøyr Camping, Runde – zaplaceny 2 noci; Leaibevutna – ubytko před Nordkappem). Jmenovitý ruční přepis, žádné automatické hádání, s vlastním zámkem proti opakování. -->
+<!-- go2no v177: soupisy trajektů a noclehů drží pravidlo „co řádek, to jeden záznam“ – žádná buňka se nezalamuje ani neořezává, takže je vidět celý text; na úzkém displeji se tabulka posouvá vodorovně prstem, na papíře A4 se vejde celá. Pevné šířky sloupců zrušeny, šířka se řídí obsahem. -->
 <!-- go2no v176: název noclehu v soupisu drží jednu řádku – text, který se do sloupce nevejde, se ořízne místo zalamování (tabulka s pevným rozvržením, celý název zůstává v bublině a v deníku). Platí na displeji i v tisku. -->
 <!-- go2no v175: v přehledech vypadla sekce „Denní souhrny“ a hned za soupis trajektů přibyl soupis noclehů – jeden řádek na nocleh: datum, souřadnice, název, typ a cena v místní měně i v korunách, se součtem na konci. Platí i pro tisk. -->
 <!-- go2no v174: oprava chyby v mém vlastním kódu – pozdější jednorázové úpravy (přejmenování vody, srovnání okolí Tungestølen) byly umístěné uvnitř bloku, který se hned na začátku ukončil, pokud už jeho příznak existoval. U každého, kdo měl srovnání s výpisem hotové, se proto nikdy neprovedly. Nyní běží ve vlastní funkci, každá s vlastním zámkem. -->
@@ -2850,13 +2852,13 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       ${Object.keys(perC).map(cc=>{const p=perC[cc];return `<tr><td>${esc(LBL[cc]||'Jinde')}</td><td>${p.n}×</td><td>${fmtN(p.l,1)} l</td><td>${p.l>0?fmtN(p.czk/p.l,2):'—'}</td><td>${fmtCzkInt(Math.ceil(p.czk))}</td></tr>`;}).join('')}</table>
       ${(()=>{ const fer=expenseEnts.filter(e=>(e.category||'')==='ferry').sort((a,b)=>ms(a.at)-ms(b.at));
         if(!fer.length)return '';
-        return `<h3>Trajekty</h3><table class="tj-paper-table">${fer.map(e=>`<tr><td style="width:78px">${esc(exportDateParts(e.at).date)}</td><td>${esc(String(e.note||'trajekt'))}</td><td>${e.amount!=null?esc(fmtN(e.amount,2)+' '+(e.currency||'')):''}</td><td>${fmtCzkInt(czkOf(e))}</td></tr>`).join('')}<tr class="total"><td colspan="3">Trajekty celkem · ${fer.length}×</td><td>${fmtCzkInt(fer.reduce((s,e)=>s+czkOf(e),0))}</td></tr></table>`; })()}
+        return `<h3>Trajekty</h3><div class="tj-table-scroll"><table class="tj-paper-table tj-table-rows">${fer.map(e=>`<tr><td style="width:78px">${esc(exportDateParts(e.at).date)}</td><td>${esc(String(e.note||'trajekt'))}</td><td>${e.amount!=null?esc(fmtN(e.amount,2)+' '+(e.currency||'')):''}</td><td>${fmtCzkInt(czkOf(e))}</td></tr>`).join('')}<tr class="total"><td colspan="3">Trajekty celkem · ${fer.length}×</td><td>${fmtCzkInt(fer.reduce((s,e)=>s+czkOf(e),0))}</td></tr></table></div>`; })()}
       ${(()=>{ /* v175: soupis noclehů – jeden řádek na nocleh: datum, poloha, název, typ a cena v místní měně i v korunách. */
         const lg=lodgingEnts.slice().sort((a,b)=>ms(a.at)-ms(b.at));
         if(!lg.length)return '';
         const pos=e=>{ const g=e&&e.gps; return (g&&Number.isFinite(Number(g.lat))&&Number.isFinite(Number(g.lon)))?(Number(g.lat).toFixed(4)+', '+Number(g.lon).toFixed(4)):'—'; };
         const loc=e=>e.amount!=null?(fmtN(e.amount,2)+' '+(e.currency||'')):'';
-        return `<h3>Noclehy</h3><table class="tj-paper-table tj-table-fixed">${lg.map(e=>`<tr><td style="width:74px">${esc(exportDateParts(e.at).date)}</td><td style="width:118px">${esc(pos(e))}</td><td class="tj-clip" title="${escAttr(String(e.note||''))}">${esc(String(e.note||'—'))}</td><td style="width:74px">${esc(TJ_LODGING[e.lodgingType]||'')}</td><td style="width:88px">${esc(loc(e))}</td><td>${fmtCzkInt(czkOf(e))}</td></tr>`).join('')}<tr class="total"><td colspan="5">Noclehy celkem · ${lg.length}×</td><td>${fmtCzkInt(lg.reduce((s,e)=>s+czkOf(e),0))}</td></tr></table>`; })()}
+        return `<h3>Noclehy</h3><div class="tj-table-scroll"><table class="tj-paper-table tj-table-rows">${lg.map(e=>`<tr><td>${esc(exportDateParts(e.at).date)}</td><td>${esc(pos(e))}</td><td title="${escAttr(String(e.note||''))}">${esc(String(e.note||'—'))}</td><td>${esc(TJ_LODGING[e.lodgingType]||'')}</td><td>${esc(loc(e))}</td><td>${fmtCzkInt(czkOf(e))}</td></tr>`).join('')}<tr class="total"><td colspan="5">Noclehy celkem · ${lg.length}×</td><td>${fmtCzkInt(lg.reduce((s,e)=>s+czkOf(e),0))}</td></tr></table></div>`; })()}
       <p class="muted">Země je odvozena ze zjednodušených hranic podle GPS tankování; částky v Kč jsou zaokrouhleny nahoru po jednotlivých záznamech, průměry se počítají z přesných hodnot.</p>`;
   }
   /* v133: tisková podoba deníku – kompaktní řádky den po dni. */
@@ -2957,8 +2959,9 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       td:last-child{text-align:right;white-space:nowrap}
       tr{page-break-inside:avoid}
       tr.total td{font-weight:800;border-top:2px solid #b9b09a;border-bottom:none}
-      table.tj-table-fixed{table-layout:fixed}
-      td.tj-clip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .tj-table-scroll{overflow:visible}
+      table.tj-table-rows{width:100%}
+      table.tj-table-rows td{white-space:nowrap}
       .muted{color:#6f675a;font-size:11px;margin:6px 0 0}
       .sheet{padding:0}
       h4{font-size:12.5px;margin:0 0 7px;color:#14171c}
@@ -4325,6 +4328,19 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
             gps:{lat:61.54401,lon:6.97194,acc:0,ts:0}},'návrat od ledovce k chatě'); done++;
         }
         try{ localStorage.setItem('g2n_backfill3_v1','1'); }catch(_){ }
+      }
+      /* v178: v soupisu noclehů má být na začátku vždy název ubytování. U tří
+         zápisů byla poznámka psaná jako věta, takže se název ztrácel uprostřed.
+         Přepis je ruční a jmenovitý, žádné automatické hádání – původní údaje
+         zůstávají zachovány, jen se přeskládají. */
+      if(localStorage.getItem('g2n_lodging_names_v1')!=='1'){
+        const rename=[
+          ['lodging-fcf9a4b0-f989-413f-a28f-38ff94e91311','Kjerag Lysebotn Camping – unimobuňka'],
+          ['lodging-a6b6d63e-8f26-4c82-b029-580fb394986a','Goksøyr Camping, Runde – zaplaceny 2 noci'],
+          ['lodging-bd27bd68-3d0a-42a8-ab49-cf500dd64c77','Leaibevutna – ubytko před Nordkappem (asi 125 km)']
+        ];
+        rename.forEach(([id,txt])=>{ const e=all().find(x=>x&&x.id===id); if(e&&!e.deleted&&e.note!==txt){ upsertEntry(Object.assign({},e,{note:txt}),'název noclehu na začátek'); done++; } });
+        try{ localStorage.setItem('g2n_lodging_names_v1','1'); }catch(_){ }
       }
       if(done) toast('Doplněny pozdější opravy ('+done+').');
     }catch(_){ }
@@ -8392,9 +8408,12 @@ body.family-view [data-tj-action="end"]{display:none!important}
 .tj-paper-table td{padding:4px 6px;border-bottom:1px solid #e3dccb;vertical-align:top;text-align:left}
 .tj-paper-table td:last-child{text-align:right;white-space:nowrap}
 .tj-paper-table tr.total td{font-weight:800;border-top:2px solid #b9b09a;border-bottom:none}
-/* v176: název noclehu drží jednu řádku – co se nevejde, se ořízne, nezalamuje. */
-.tj-paper-table.tj-table-fixed{table-layout:fixed}
-.tj-paper-table td.tj-clip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* v177: soupisy trajektů a noclehů – co řádek, to jeden záznam. Žádná buňka se
+   nezalamuje; na úzkém displeji se tabulka posouvá vodorovně, na papíře A4 se
+   vejde celá. */
+.tj-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tj-paper-table.tj-table-rows{width:auto;min-width:100%}
+.tj-paper-table.tj-table-rows td{white-space:nowrap}
 #tjPrintSheet{display:none}
 @media print{
  /* v139: tisk vyvolaný přímo z prohlížeče (mimo tlačítko Tisk / PDF). Plovoucí
