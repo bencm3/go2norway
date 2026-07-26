@@ -4,6 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
 <!-- go2no v146: dlaždice „Zápis během cesty“ na kartách cílů má místo písmen „Ab“ symbol dolaru (tvar dlaždice, barva i velikost zůstávají). -->
+<!-- go2no v162: (1) hláška po přihlášení nyní odpovídá zvolenému režimu synchronizace, netvrdí natvrdo, že je automatika zapnutá. (2) Sekce Online synchronizace se nesbaluje – šipka mátla a po sbalení odkryla pod nadpisem panel „Nová cesta s výmazem deníku“. (3) Opravena pojistka z v160: porovnává se identita časového razítka serveru s tím, které zařízení naposledy zapsalo nebo stáhlo (drobný rozdíl hodin telefonu a serveru dřív hlásil cizí změnu); po odeslání se ukládá razítko tak, jak ho eviduje server. (4) Přihlašovací blok se přesunul pod volby automatické synchronizace, nad rodinný náhled, jako lícovaný řádek bez rámečku. -->
 <!-- go2no v161: v nastavení přibyla viditelná volba automatické synchronizace se čtyřmi možnostmi v jedné řádce – Vypnuto (výchozí), Jen import, Jen export, Automaticky – s krátkým popiskem, co která znamená. Při vypnuté automatice se stav přenáší výhradně tlačítky Export a Import. Rodinný náhled je z podstaty jen ke čtení a stahuje dál vždy. -->
 <!-- go2no v160: pojistka proti přepsání novějšího online stavu. Automatické odeslání se napřed zeptá serveru na čas poslední změny; leží-li tam novější stav, než jaký toto zařízení naposledy stáhlo (nebo nestáhlo vůbec), odeslání se zastaví a uživatel je vyzván nejprve importovat. Ruční Export stavu on-line zůstává plně v rukou uživatele. -->
 <!-- go2no v159: import stavu ze serveru už nespadne, když je úložiště prohlížeče plné. Uložení nastavení se zkusí nejprve celé, pak odlehčené bez snímku počasí, a když ani to neprojde, data zůstanou načtená v paměti a uživatel dostane srozumitelnou hlášku místo přerušeného stahování. -->
@@ -1240,16 +1241,14 @@ body.editing .card > .chead > .headboxes > .targetbox > b.ed.editing{box-shadow:
       <input id="cfgCons" type="hidden"><input id="cfgRefuel" type="hidden"><input id="geoRadiusKm" type="hidden">
     </div>
 
-    <details class="setting-details" open="">
+    <!-- v162: sekce se nesbaluje. Rozbalovací šipka u nadpisu nic užitečného
+         nenabízela a po sbalení se hned pod nadpisem objevil zelený panel
+         „Nová cesta s výmazem deníku“, což vypadalo, jako by se spustil výmaz. -->
+    <details class="setting-details g2n-no-toggle" open="">
       <summary>Online synchronizace</summary>
       <div class="setting-panel">
         <details class="g2n-online-sync-info"><summary title="Jak funguje synchronizace" aria-label="Jak funguje synchronizace">i</summary><div>Po přihlášení se změny ukládají online automaticky několik sekund po úpravě. Záložně se kontroluje neuložená změna každých 10 minut.</div></details>
         <div class="syncbox">
-          <div class="syncrow g2n-auth-row">
-            <input id="syncEmail" type="email" autocomplete="email" placeholder="bencm3@gmail.com" value="bencm3@gmail.com">
-            <div class="g2n-password-field"><input id="syncPassword" type="password" autocomplete="current-password" placeholder="heslo pro go2no"><button id="syncPasswordLogin" type="button" title="Přihlásit heslem" aria-label="Přihlásit heslem">➜</button></div>
-          </div>
-          <div class="syncrow g2n-email-login-row"><button id="syncLogin" title="Odešle přihlašovací odkaz e-mailem">Poslat odkaz e-mailem</button></div>
           <div class="syncrow">
             <button class="primary" id="syncUpload">Export stavu on-line</button>
             <button id="syncDownload">Import stavu on-line</button>
@@ -1267,6 +1266,16 @@ body.editing .card > .chead > .headboxes > .targetbox > b.ed.editing{box-shadow:
               <button type="button" data-sync-mode="auto">Automaticky</button>
             </div>
             <span id="syncModeNote"></span>
+          </div>
+          <!-- v162: přihlášení se přesunulo pod volby automatické synchronizace,
+               těsně nad rodinný náhled – bez vlastního rámečku, jen oddělené linkou. -->
+          <div class="g2n-login-row">
+            <b>Přihlášení k online účtu</b>
+            <div class="syncrow g2n-auth-row">
+            <input id="syncEmail" type="email" autocomplete="email" placeholder="bencm3@gmail.com" value="bencm3@gmail.com">
+            <div class="g2n-password-field"><input id="syncPassword" type="password" autocomplete="current-password" placeholder="heslo pro go2no"><button id="syncPasswordLogin" type="button" title="Přihlásit heslem" aria-label="Přihlásit heslem">➜</button></div>
+          </div>
+          <div class="syncrow g2n-email-login-row"><button id="syncLogin" title="Odešle přihlašovací odkaz e-mailem">Poslat odkaz e-mailem</button></div>
           </div>
           <div class="g2n-family-mode-box" id="familyModeBox">
             <div class="g2n-family-mode-copy"><b>Rodinný náhled na tomto zařízení</b><span>Zakáže úpravy, zápisy i export. Aktuální online stav se načte při otevření, po návratu do aplikace a každou minutu na pozadí.</span></div>
@@ -6028,16 +6037,16 @@ async function autoSyncUpload(reason){
      zablokuje a uživatel dostane výzvu nejprve importovat. Ruční tlačítko
      Export stavu on-line zůstává nedotčené – tam rozhoduje uživatel. */
   try{
+    /* v162: pojistka porovnává IDENTITU časového razítka, ne jeho stáří. Původní
+       porovnání časů hlásilo cizí změnu i tam, kde šlo o vlastní poslední odeslání
+       – stačil nepatrný rozdíl mezi hodinami telefonu a serveru. Teď platí: pokud
+       je na serveru přesně to razítko, které toto zařízení naposledy zapsalo nebo
+       stáhlo, je vše v pořádku; jiné razítko znamená zásah z jiného zařízení. */
     const { data:head, error } = await client.from('trip_state').select('updated_at').eq('id', TRIP_ID).single();
     if(!error && head && head.updated_at){
       const known=localStorage.getItem(ONLINE_LAST_KEY)||'';
-      if(known && new Date(head.updated_at).getTime() > new Date(known).getTime()+1000){
-        syncSetStatus('Automatické odeslání zastaveno: na serveru je novější stav ('+fmtOnlineTime(head.updated_at)+') než v tomto zařízení.\nNejprve použij Import stavu on-line, ať nepřepíšeš novější data.', 'err');
-        updateOnlineLine('error');
-        return;
-      }
-      if(!known){
-        syncSetStatus('Automatické odeslání zastaveno: toto zařízení ještě nestáhlo online stav.\nNejprve použij Import stavu on-line.', 'err');
+      if(known && String(head.updated_at)!==String(known)){
+        syncSetStatus('Automatické odeslání zastaveno: online stav změnilo jiné zařízení ('+fmtOnlineTime(head.updated_at)+').\nNejprve použij Import stavu on-line, ať nepřepíšeš cizí data. Ruční Export stavu on-line funguje dál.', 'err');
         updateOnlineLine('error');
         return;
       }
@@ -6116,7 +6125,15 @@ async function syncRefreshSession(){
   const email=data && data.session && data.session.user ? data.session.user.email : null;
   onlineEmail=email;
   if(email) rememberAdminEmail(email);
-  if(email) syncSetStatus('Přihlášeno jako '+email+'\nAutomatické online ukládání a automatické stahování po 15 minutách je zapnuté.', 'ok');
+  /* v162: text po přihlášení odpovídá zvolenému režimu, ne pevně zapnuté automatice. */
+  if(email){
+    const m=(typeof syncMode==='function')?syncMode():'off';
+    const popis = m==='off' ? 'Automatická synchronizace je vypnutá – stav přenášíš tlačítky Export a Import.'
+      : m==='import' ? 'Automaticky se jen stahuje online stav; odeslání zůstává na tlačítku.'
+      : m==='export' ? 'Automaticky se jen odesílá; stažení zůstává na tlačítku.'
+      : 'Automatické odesílání i stahování je zapnuté.';
+    syncSetStatus('Přihlášeno jako '+email+'\n'+popis, 'ok');
+  }
   else syncSetStatus('Online režim zatím není přihlášený.', 'warn');
   updateOnlineLine();
   return data.session;
@@ -6161,12 +6178,14 @@ async function syncUpload(auto){
     if(!auto) syncSetStatus('Nahrávám aktuální stav online…', 'info');
     const nowIso=new Date().toISOString();
     const state=await collectOnlineState();
-    const { error } = await client.from('trip_state').upsert({
+    const { data:saved, error } = await client.from('trip_state').upsert({
       id: TRIP_ID, data: state, is_public: true, updated_at: nowIso
-    });
+    }).select('updated_at').single();
     if(error) throw error;
     onlineDirty=false;
-    onlineLastSaved=nowIso;
+    /* v162: uloží se razítko tak, jak ho po zápisu eviduje server – jen tak lze
+       později poznat vlastní zápis od cizího. */
+    onlineLastSaved=(saved && saved.updated_at) ? saved.updated_at : nowIso;
     localStorage.setItem(ONLINE_LAST_KEY, onlineLastSaved);
     syncSetStatus((auto?'Automatické online uložení provedeno.':'Online stav uložen.')+'\n'+new Date(nowIso).toLocaleString('cs-CZ'), 'ok');
     updateOnlineLine();
@@ -7868,6 +7887,12 @@ body.family-view .familybar{display:none!important}
 body.family-view .family-watermark{display:block}
 /* Gear remains available specifically so that the family-mode switch is reachable. */
 body.family-view #btnSettings{display:inline-grid!important;place-items:center!important}
+/* v162: přihlašovací blok jako lícovaný řádek oddělený linkou, bez rámečku. */
+.g2n-login-row{margin-top:10px;padding:9px 0 0;border-top:1px solid var(--line)}
+.g2n-login-row>b{display:block;font-size:13px;margin-bottom:6px}
+.g2n-no-toggle>summary{list-style:none;pointer-events:none}
+.g2n-no-toggle>summary::-webkit-details-marker{display:none}
+.g2n-no-toggle>summary::after{display:none!important}
 /* v161: volba automatické synchronizace – čtyři možnosti v jedné řádce,
    oddělené jen linkou, bez dalšího rámečku uvnitř sekce. */
 .g2n-syncmode-row{margin-top:10px;padding:9px 0 0;border-top:1px solid var(--line)}
