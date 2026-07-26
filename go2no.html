@@ -4,6 +4,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
 <!-- go2no v146: dlaždice „Zápis během cesty“ na kartách cílů má místo písmen „Ab“ symbol dolaru (tvar dlaždice, barva i velikost zůstávají). -->
+<!-- go2no v170: položka 90 NOK u Smarthotelu Forus upřesněna na „2× voda 0,5 l“ a přeřazena z ostatních útrat mezi potraviny. Běží pod vlastním zámkem, takže se úprava provede i v deníku, kde už předchozí srovnání s výpisem proběhlo. -->
+<!-- go2no v169: druhé jednorázové srovnání deníku s výpisem z účtu – doplněny tři chybějící platby (Bjerkvik Hotell 1 256,58 NOK, Starbucks Hirtshals 102 DKK, Smarthotel Forus 90 NOK), opraveny čtyři zápisy (JBOJ 150→159 NOK, parkovné 17,25 NOK→37,82 Kč EasyPark, kola a kafe z NOK na SEK, německé tankování 29,83→35,50 EUR), útrata za kafe přesunuta k tankování u Samuelsbergu a odstraněn duplicitní nocleh z 6. 7. Vázáno na resetAt této cesty, se zámkem proti opakování. -->
+<!-- go2no v168: přepočet měn už nepoužívá jediný kurz, ale kurz platný v den zápisu. Z výpisu z účtu je u každé platby známý kurz banky i datum, takže „oficiální“ kurz daného dne vychází jako kurz banky děleno přirážkou 1,04; první odvozené hodnoty se od kurzovního lístku ECB z 2. 7. liší jen o 0,1–0,3 %, což potvrzuje správnost. Přepočet je částka × kurz dne × 1,04, zaokrouhleno nahoru na desetikoruny; u jednotlivých plateb tak vychází rozdíl proti výpisu jen jednotky korun. -->
+<!-- go2no v167: bankovní koeficient upřesněn na 1,053 z kompletního výpisu z účtu (95 karetních plateb cesty; kurzy banky NOK 2,237–2,281 · SEK 2,276 · EUR 25,14 · DKK 3,364). Celková odchylka proti skutečně odepsaným 78 358 Kč je při této hodnotě asi deset korun. -->
+<!-- go2no v166: (1) bankovní koeficient 1,046 na všechny částky vzniklé přepočtem kurzem, výsledek zaokrouhlen nahoru na celé desetikoruny; částky vedené v Kč nebo opsané z výpisu zůstávají beze změny. Odvozeno z jedenácti reálných transakcí (vážený poměr 1,0459). (2) Lišta mapy: FILTR je vlevo a fialově odlišený, PLÁN a STOPA se skryly pod tlačítko TRASA, které rozbalí dvě volby a po výběru se zase sbalí – lišta zůstává na jediném řádku. -->
 <!-- go2no v165: spolehlivější ukládání formulářů deníku. Záchrana němého klepnutí u odesílacích tlačítek nyní posílá formuláři přímo událost submit místo .click(), která se na některých zařízeních neprojevila (tlačítko „Uložit přenocování“ nereagovalo). Navíc lze každý formulář deníku odeslat klávesou Enter (na mobilní klávesnici ✓ / Hotovo) z libovolného textového pole. -->
 <!-- go2no v164: průjezdní body skutečné trasy. V liště mapy je tlačítko ＋ BOD; po jeho zapnutí klepnutí do mapy vloží bod, jehož čas se dopočítá promítnutím na nejbližší úsek dosavadní trasy, takže se zařadí přesně mezi správné dva zápisy. Bod je běžný záznam typu 'via' – synchronizuje se a je součástí dat cesty, ale nemá vlastní symbol, nezobrazuje se v deníku ani v přehledech a slouží jen jako vrchol vykreslované čáry. V režimu ＋ BOD jsou body vidět jako malé bordó puntíky a klepnutím se mažou. -->
 <!-- go2no v163: cíle v mapě mají už jen dva stavy – navštívený zeleně, nenavštívený šedě, bez přeškrtávání (na displeji i v exportu). Jednotlivé cíle lze navíc na mapě „zhasnout“ tlačítkem Skrýt na mapě v jejich detailu; chip ⦸ ve filtru je dočasně odkryje, aby šly zase vrátit. Skrytí je uložené v zařízení a itinerář ani deník nijak nemění. -->
@@ -2025,6 +2030,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     installFamilyRefresh();
     try{ installBrowserPrintBridge(); }catch(_){ }
     window.setTimeout(g2nBackfillNorsko2026,900);
+    window.setTimeout(g2nBackfill2Norsko2026,1400);
     try{ render(); }catch(e){ console.error('Živá cesta – první vykreslení:',e); }
   }
 
@@ -2165,7 +2171,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   function fuelStats(j){
     const fuel=visibleEntries(j).filter(e=>e.type==='fuel').sort((a,b)=>ms(a.at)-ms(b.at));
     const totalLiters=fuel.reduce((s,e)=>s+(Number(e.liters)||0),0);
-    const totalCzk=fuel.reduce((s,e)=>s+(Number(e.amountCzk)||0),0);
+    const totalCzk=fuel.reduce((s,e)=>s+czkOf(e),0);
     const segments=[]; let fullIndex=-1;
     fuel.forEach((f,i)=>{
       if(!f.fullTank || entryOdo(f)==null) return;
@@ -2184,7 +2190,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     const map={fuel:0,food:0,parking:0,admission:0,ferry:0,accommodation:0,other:0};
     let total=0;
     visibleEntries(j).forEach(e=>{
-      const v=Number(e.amountCzk)||0; if(!v) return;
+      const v=czkOf(e); if(!v) return;
       /* v137: oprava chyby priority operátorů. Původní zápis vyhodnocoval
          (e.category || e.type==='lodging') ? 'accommodation' : 'other', takže
          KAŽDÁ útrata s vyplněnou kategorií (jídlo, trajekt, parkovné, vstupy)
@@ -2590,7 +2596,47 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   }
   function entrySummary(e,compact){ const title=entryTitle(e), t=fmtDateTime(e.at); return compact?`${title} · ${t}`:`${title} · ${t}`; }
   function mapsLink(g){ return g?`https://mapy.com/cs/turisticka?x=${encodeURIComponent(g.lon)}&y=${encodeURIComponent(g.lat)}&z=15`:''; }
-  function entryCzk(e){ const n=Number(e.amountCzk); return Number.isFinite(n)&&n?fmtMoney(n):''; }
+  /* v168: přepočet měn podle kurzu platného v den zápisu.
+   Marže banky: platby zaúčtované do dvou dnů po stažení kurzovního lístku
+   (2. 7.) ukazují proti němu +3,83 % u eura, +3,84 % u dánské a +4,28 % u norské
+   koruny – to je téměř čistá přirážka, protože kurz se za tu dobu nestihl
+   pohnout. Používá se tedy 1,04.
+   Kurzovní historie: z výpisu z účtu je u každé platby známý kurz banky i datum,
+   takže „oficiální“ kurz pro daný den vychází jako kurz banky děleno 1,04.
+   Kontrola vyšla velmi dobře – první odvozené hodnoty se od kurzovního lístku
+   ECB z 2. 7. liší o 0,1 až 0,3 %, což potvrzuje, že přirážka i historie sedí.
+   Přepočet pak probíhá jako částka × kurz platný k datu zápisu × 1,04 a výsledek
+   se zaokrouhlí nahoru na celé desetikoruny. Pro měny nebo období mimo tuto
+   historii se použije uložený kurzovní lístek aplikace, opět s přirážkou. */
+  const FX_BANK_FEE=1.04;
+  const FX_RATE_HISTORY={
+    NOK:[['2026-07-04',2.1510],['2026-07-06',2.1635],['2026-07-07',2.1731],['2026-07-08',2.1808],['2026-07-09',2.1721],
+         ['2026-07-11',2.1750],['2026-07-13',2.1923],['2026-07-14',2.1837],['2026-07-15',2.1923],['2026-07-16',2.1933],['2026-07-18',2.1913]],
+    SEK:[['2026-07-18',2.1885]],
+    EUR:[['2026-07-02',24.1750],['2026-07-03',24.1692]],
+    DKK:[['2026-07-03',3.2337],['2026-07-04',3.2346]]
+  };
+  function fxRateFor(cur,at){
+    const ser=FX_RATE_HISTORY[cur]; if(!ser||!ser.length) return null;
+    const day=String(at||'').slice(0,10); let rate=ser[0][1];
+    for(let i=0;i<ser.length;i++){ if(ser[i][0]<=day) rate=ser[i][1]; else break; }
+    return rate;
+  }
+  function czkOf(e){
+    const n=Number(e&&e.amountCzk);
+    if(!Number.isFinite(n)||n<=0) return 0;
+    const cur=String((e&&e.currency)||'').toUpperCase();
+    const rate=Number(e&&e.rateCzk);
+    /* Korunová hodnota zadaná napřímo (opsaná z výpisu) je už skutečná a neupravuje se. */
+    if(!cur||cur==='CZK'||!Number.isFinite(rate)||rate<=0||rate===1) return n;
+    const amt=Number(e&&e.amount);
+    const day=fxRateFor(cur, e&&e.at);
+    /* Přednost má kurz platný v den zápisu; jinak se použije uložená korunová
+       hodnota, obojí navýšené o přirážku banky. */
+    const base=(Number.isFinite(amt)&&amt>0&&day) ? amt*day : n;
+    return Math.ceil(base*FX_BANK_FEE/10)*10;
+  }
+  function entryCzk(e){ const n=czkOf(e); return n?fmtMoney(n):''; }
 
 
   function journalTabs(active){
@@ -2648,7 +2694,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       const before=odo.filter(r=>ms(r.at)<bounds.start).at(-1)||null;
       const within=odo.filter(r=>ms(r.at)>=bounds.start&&ms(r.at)<=bounds.end).at(-1)||null;
       const km=before&&within&&within.odometerKm>=before.odometerKm?within.odometerKm-before.odometerKm:null;
-      const cost=items.reduce((s,e)=>s+(Number(e.amountCzk)||0),0);
+      const cost=items.reduce((s,e)=>s+czkOf(e),0);
       const fuelLiters=items.filter(e=>e.type==='fuel').reduce((s,e)=>s+(Number(e.liters)||0),0);
       const lodging=items.filter(e=>e.type==='lodging').length;
       const arrivals=Object.values(states).filter(s=>s&&s.status==='visited'&&s.entry&&localDateKey(s.entry.at)===key).map(s=>{const l=legForId(s.entry.targetId);return l?cleanName(l.to_name):'cíl';});
@@ -2747,13 +2793,13 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     try{ localStorage.setItem(MAP_HIDDEN_KEY, JSON.stringify(m)); }catch(e){}
   }
   function czkCeil(v){ const n=Number(v); return Number.isFinite(n)?Math.ceil(n):0; }
-  function fmtCzkInt(v){ return Number(v||0).toLocaleString('cs-CZ')+' Kč'; }
+  function fmtCzkInt(v){ return Math.round(Number(v)||0).toLocaleString('cs-CZ')+' Kč'; }
   /* v133: papírový výdajový report. Částky v Kč se u každého záznamu zaokrouhlují
      nahoru (skutečný odchozí pohyb na účtu bývá vyšší než kurzový přepočet);
      průměry (Kč/l, spotřeba) se počítají z nezaokrouhlených hodnot. */
   function tripPaperReportHTML(x){
     const j=x.j, st=x.st, endRec=journalEnd(j), ents=x.entries;
-    const sumC=arr=>arr.reduce((s,e)=>s+czkCeil(e.amountCzk),0);
+    const sumC=arr=>arr.reduce((s,e)=>s+czkOf(e),0);
     const fuelEnts=ents.filter(e=>e.type==='fuel'), lodgingEnts=ents.filter(e=>e.type==='lodging'), expenseEnts=ents.filter(e=>e.type==='expense');
     const total=sumC(fuelEnts)+sumC(lodgingEnts)+sumC(expenseEnts);
     const days=st&&endRec?Math.round((ms(endRec.at)-ms(st.at))/86400000)+1:null;
@@ -2772,7 +2818,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     ['ferry','food','parking','admission','accommodation','other'].forEach(cKey=>{ const a=expenseEnts.filter(e=>(e.category||'other')===cKey); if(a.length)typeRows.push([TJ_CATEGORY[cKey]||cKey,a.length,sumC(a)]); });
     const LBL={CZ:'Česko',DE:'Německo',DK:'Dánsko',NO:'Norsko',SE:'Švédsko'};
     const perC={};
-    fuelEnts.forEach(e=>{ const cc=tripCountryOfGps(e.gps)||'??'; const p=perC[cc]=perC[cc]||{n:0,l:0,czk:0}; p.n++; p.l+=Number(e.liters)||0; p.czk+=Number(e.amountCzk)||0; });
+    fuelEnts.forEach(e=>{ const cc=tripCountryOfGps(e.gps)||'??'; const p=perC[cc]=perC[cc]||{n:0,l:0,czk:0}; p.n++; p.l+=Number(e.liters)||0; p.czk+=czkOf(e); });
     const odoF=fuelEnts.filter(e=>entryOdo(e)!=null).sort((a,b)=>ms(a.at)-ms(b.at));
     const gaps=[]; for(let i=1;i<odoF.length;i++){ const d=entryOdo(odoF[i])-entryOdo(odoF[i-1]); if(d>0)gaps.push(d); }
     const avgGap=gaps.length?gaps.reduce((a,b)=>a+b,0)/gaps.length:null;
@@ -2789,7 +2835,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       ${Object.keys(perC).map(cc=>{const p=perC[cc];return `<tr><td>${esc(LBL[cc]||'Jinde')}</td><td>${p.n}×</td><td>${fmtN(p.l,1)} l</td><td>${p.l>0?fmtN(p.czk/p.l,2):'—'}</td><td>${fmtCzkInt(Math.ceil(p.czk))}</td></tr>`;}).join('')}</table>
       ${(()=>{ const fer=expenseEnts.filter(e=>(e.category||'')==='ferry').sort((a,b)=>ms(a.at)-ms(b.at));
         if(!fer.length)return '';
-        return `<h3>Trajekty</h3><table class="tj-paper-table">${fer.map(e=>`<tr><td style="width:78px">${esc(exportDateParts(e.at).date)}</td><td>${esc(String(e.note||'trajekt'))}</td><td>${e.amount!=null?esc(fmtN(e.amount,2)+' '+(e.currency||'')):''}</td><td>${fmtCzkInt(czkCeil(e.amountCzk))}</td></tr>`).join('')}<tr class="total"><td colspan="3">Trajekty celkem · ${fer.length}×</td><td>${fmtCzkInt(fer.reduce((s,e)=>s+czkCeil(e.amountCzk),0))}</td></tr></table>`; })()}
+        return `<h3>Trajekty</h3><table class="tj-paper-table">${fer.map(e=>`<tr><td style="width:78px">${esc(exportDateParts(e.at).date)}</td><td>${esc(String(e.note||'trajekt'))}</td><td>${e.amount!=null?esc(fmtN(e.amount,2)+' '+(e.currency||'')):''}</td><td>${fmtCzkInt(czkOf(e))}</td></tr>`).join('')}<tr class="total"><td colspan="3">Trajekty celkem · ${fer.length}×</td><td>${fmtCzkInt(fer.reduce((s,e)=>s+czkOf(e),0))}</td></tr></table>`; })()}
       <p class="muted">Země je odvozena ze zjednodušených hranic podle GPS tankování; částky v Kč jsou zaokrouhleny nahoru po jednotlivých záznamech, průměry se počítají z přesných hodnot.</p>`;
   }
   /* v133: tisková podoba deníku – kompaktní řádky den po dni. */
@@ -2990,8 +3036,8 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   function journalMoneyText(e){
     const amount=Number(e&&e.amount), currency=String(e&&e.currency||'').trim();
     if(Number.isFinite(amount)) return fmtN(amount,2)+(currency?' '+currency:'');
-    const amountCzk=Number(e&&e.amountCzk);
-    return Number.isFinite(amountCzk)?fmtMoney(amountCzk):'';
+    const v=czkOf(e);
+    return v?fmtMoney(v):'';
   }
   function journalLineData(e){
     const note=String(e&&e.note||'').trim(), money=journalMoneyText(e), parts=[];
@@ -3260,7 +3306,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     if(e.type==='fuel') details.push(['Palivo',fmtN(e.liters,2)+' l'+(e.fullTank?' · do plna':' · částečné')]);
     if(e.amount!=null) details.push(['Původní částka',fmtN(e.amount,2)+' '+(e.currency||'CZK')]);
     if(e.rateCzk!=null&&e.currency!=='CZK') details.push(['Použitý kurz',fmtN(e.rateCzk,4)+' Kč / '+(e.currency||'')]);
-    if(e.amountCzk!=null) details.push(['V Kč',fmtMoney(e.amountCzk)]);
+    if(e.amountCzk!=null) details.push(['V Kč',fmtMoney(czkOf(e))]);
     if(e.rateSource) details.push(['Zdroj kurzu',e.rateSource]);
     if(target) details.push(['Cíl',cleanName(target.to_name)]);
     if(gps) details.push([e.type==='note'?'GPS poloha':'Poloha',`<a href="${escAttr(mapsLink(gps))}" target="_blank" rel="noopener">${esc(gpsText(gps))} · otevřít mapu</a>`]);
@@ -3331,11 +3377,11 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     if(x.fuel.totalLiters>0)rows.push(['Palivo','Průměrná cena','',Math.round(x.fuel.totalCzk/x.fuel.totalLiters*100)/100,'Kč/l']);
     if(x.fuel.overall!=null)rows.push(['Palivo','Průměrná spotřeba','',Math.round(x.fuel.overall*100)/100,'l/100 km']);
     const LBL={CZ:'Česko',DE:'Německo',DK:'Dánsko',NO:'Norsko',SE:'Švédsko'}, perC={};
-    fuelE.forEach(e=>{ const cc=tripCountryOfGps(e.gps)||'??'; const p=perC[cc]=perC[cc]||{n:0,l:0,czk:0}; p.n++; p.l+=Number(e.liters)||0; p.czk+=Number(e.amountCzk)||0; });
+    fuelE.forEach(e=>{ const cc=tripCountryOfGps(e.gps)||'??'; const p=perC[cc]=perC[cc]||{n:0,l:0,czk:0}; p.n++; p.l+=Number(e.liters)||0; p.czk+=czkOf(e); });
     Object.keys(perC).forEach(cc=>{ const p=perC[cc];
       rows.push(['Palivo podle zemí',LBL[cc]||'Jinde',p.n,Math.round(p.l*10)/10,'l']);
       if(p.l>0)rows.push(['Palivo podle zemí',(LBL[cc]||'Jinde')+' – cena','',Math.round(p.czk/p.l*100)/100,'Kč/l']); });
-    expE.filter(e=>(e.category||'')==='ferry').sort((a,b)=>ms(a.at)-ms(b.at)).forEach(e=>rows.push(['Trajekty',String(e.note||'trajekt'),exportDateParts(e.at).date,ceil(e.amountCzk),'Kč']));
+    expE.filter(e=>(e.category||'')==='ferry').sort((a,b)=>ms(a.at)-ms(b.at)).forEach(e=>rows.push(['Trajekty',String(e.note||'trajekt'),exportDateParts(e.at).date,czkOf(e),'Kč']));
     (x.fuel.segments||[]).forEach(sg=>rows.push(['Spotřeba po úsecích',exportDateParts(sg.at||nowIso()).date,Math.round(sg.km||0),Math.round(sg.cons*100)/100,'l/100 km']));
     const csv='\ufeff'+rows.map(r=>r.map(csvCell).join(';')).join('\r\n');
     downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),'go2no_prehledy_'+exportDateParts(nowIso()).stamp+'.csv');
@@ -3863,7 +3909,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   function renderTripMap(forceFit){
     openMapHistoryState();
     document.body.classList.add('g2n-trip-map-open');
-    const html=`<section class="tj-map-screen"><header class="tj-map-screen-head"><div><b>Mapa cesty</b></div><button class="tj-map-close" data-tj-action="close-map" aria-label="Zavřít mapu" title="Zavřít mapu">×<span>Zavřít mapu</span></button></header><div class="tj-map-screen-body"><div class="tj-map-shell"><div class="tj-map-toolbar"><button class="active" data-tj-map-filter="targets" title="Zobrazit nebo skrýt cíle itineráře">ITINERÁŘ</button><button class="active" data-tj-map-filter="tops" title="Zobrazit nebo skrýt TOP60">TOP60</button><button data-tj-map-filter="plan" title="Zobrazit nebo skrýt plánovanou linii">PLÁN</button><button class="active" data-tj-map-filter="events" title="Zobrazit nebo skrýt záznamy deníku">ZÁZNAMY</button><button class="active" data-tj-map-filter="route" title="Zobrazit nebo skrýt projetou stopu">STOPA</button><button data-tj-map-typemenu title="Filtr typů záznamů">FILTR</button><button data-tj-map-via title="Přidávání průjezdních bodů do skutečné trasy">＋ BOD</button></div><div class="tj-map-exportpop" hidden><button data-tj-map-export="view">Aktuální výřez</button><button data-tj-map-export="all">Celá trasa (plakát)</button></div><div class="tj-map-typepop" hidden><button class="active" data-tj-map-type="fuel" title="Tankování">⛽</button><button class="active" data-tj-map-type="ferry" title="Trajekty">⛴</button><button class="active" data-tj-map-type="lodging" title="Noclehy">🛏</button><button class="active" data-tj-map-type="food" title="Jídlo">🍽</button><button class="active" data-tj-map-type="arrival" title="Příjezdy k cílům">✓</button><button data-tj-map-showhidden title="Dočasně ukázat skryté cíle">⦸</button></div><div class="tj-map-viewport" id="tjTripMap"><div class="tj-map-tiles"></div><svg class="tj-map-overlay"></svg><div class="tj-map-markers"></div><div class="tj-map-zoom"><button data-tj-map-control="in" aria-label="Přiblížit" title="Přiblížit">+</button><button data-tj-map-control="out" aria-label="Oddálit" title="Oddálit">−</button><button data-tj-map-control="snapshot" aria-label="Uložit snímek mapy" title="Uložit aktuální výřez mapy jako PNG">📸</button></div><div class="tj-map-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div></div><div id="tjMapDetail"></div></div></section>`;
+    const html=`<section class="tj-map-screen"><header class="tj-map-screen-head"><div><b>Mapa cesty</b></div><button class="tj-map-close" data-tj-action="close-map" aria-label="Zavřít mapu" title="Zavřít mapu">×<span>Zavřít mapu</span></button></header><div class="tj-map-screen-body"><div class="tj-map-shell"><div class="tj-map-toolbar"><button class="g2n-filter-btn" data-tj-map-typemenu title="Filtr typů záznamů">⛃ FILTR</button><button class="active" data-tj-map-filter="targets" title="Zobrazit nebo skrýt cíle itineráře">ITINERÁŘ</button><button class="active" data-tj-map-filter="tops" title="Zobrazit nebo skrýt TOP60">TOP60</button><button class="active" data-tj-map-filter="events" title="Zobrazit nebo skrýt záznamy deníku">ZÁZNAMY</button><button data-tj-map-routemenu title="Plánovaná a skutečná trasa">TRASA</button><button data-tj-map-via title="Přidávání průjezdních bodů do skutečné trasy">＋ BOD</button></div><div class="tj-map-routepop" hidden><button data-tj-map-filter="plan">Plánovaná</button><button class="active" data-tj-map-filter="route">Skutečná</button></div><div class="tj-map-exportpop" hidden><button data-tj-map-export="view">Aktuální výřez</button><button data-tj-map-export="all">Celá trasa (plakát)</button></div><div class="tj-map-typepop" hidden><button class="active" data-tj-map-type="fuel" title="Tankování">⛽</button><button class="active" data-tj-map-type="ferry" title="Trajekty">⛴</button><button class="active" data-tj-map-type="lodging" title="Noclehy">🛏</button><button class="active" data-tj-map-type="food" title="Jídlo">🍽</button><button class="active" data-tj-map-type="arrival" title="Příjezdy k cílům">✓</button><button data-tj-map-showhidden title="Dočasně ukázat skryté cíle">⦸</button></div><div class="tj-map-viewport" id="tjTripMap"><div class="tj-map-tiles"></div><svg class="tj-map-overlay"></svg><div class="tj-map-markers"></div><div class="tj-map-zoom"><button data-tj-map-control="in" aria-label="Přiblížit" title="Přiblížit">+</button><button data-tj-map-control="out" aria-label="Oddálit" title="Oddálit">−</button><button data-tj-map-control="snapshot" aria-label="Uložit snímek mapy" title="Uložit aktuální výřez mapy jako PNG">📸</button></div><div class="tj-map-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div></div><div id="tjMapDetail"></div></div></section>`;
     openJournalModal('Mapa cesty',html,'map');
     requestAnimationFrame(()=>initTripMap(forceFit!==false));
   }
@@ -3978,11 +4024,17 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
         st.detailKey=point.dataset.tjMapPoint; renderTripMapLayer(st); return;
       }
       const filter=e.target.closest('[data-tj-map-filter]');
-      if(filter){ const k=filter.dataset.tjMapFilter; st.filters[k]=!st.filters[k]; renderTripMapLayer(st); return; }
+      if(filter){ const k=filter.dataset.tjMapFilter; st.filters[k]=!st.filters[k];
+        /* v166: po volbě v podnabídce TRASA se panel zase sbalí, aby lišta
+           nezabírala další řádek. */
+        if(filter.closest('.tj-map-routepop')){ const pop=shell.querySelector('.tj-map-routepop'); if(pop)pop.hidden=true; shell.querySelector('[data-tj-map-routemenu]')?.classList.remove('active'); }
+        renderTripMapLayer(st); return; }
       const exp=e.target.closest('[data-tj-map-export]');
       if(exp){ const pop=shell.querySelector('.tj-map-exportpop'); if(pop)pop.hidden=true;
         shell.querySelector('[data-tj-map-control="snapshot"]')?.classList.remove('active');
         exportTripMapPng(st,exp.dataset.tjMapExport); return; }
+      const routeMenu=e.target.closest('[data-tj-map-routemenu]');
+      if(routeMenu){ const pop=shell.querySelector('.tj-map-routepop'); if(pop){ pop.hidden=!pop.hidden; routeMenu.classList.toggle('active',!pop.hidden); } return; }
       const typeMenu=e.target.closest('[data-tj-map-typemenu]');
       if(typeMenu){ const pop=shell.querySelector('.tj-map-typepop'); if(pop){ pop.hidden=!pop.hidden; typeMenu.classList.toggle('active',!pop.hidden); } return; }
       const viaBtn=e.target.closest('[data-tj-map-via]');
@@ -3996,6 +4048,8 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       /* Klepnutí jinam do mapy panel filtrů zase sbalí. */
       const popOpen=shell.querySelector('.tj-map-typepop:not([hidden])');
       if(popOpen){ popOpen.hidden=true; shell.querySelector('[data-tj-map-typemenu]')?.classList.remove('active'); }
+      const routeOpen=shell.querySelector('.tj-map-routepop:not([hidden])');
+      if(routeOpen){ routeOpen.hidden=true; shell.querySelector('[data-tj-map-routemenu]')?.classList.remove('active'); }
       const expOpen=shell.querySelector('.tj-map-exportpop:not([hidden])');
       if(expOpen){ expOpen.hidden=true; shell.querySelector('[data-tj-map-control="snapshot"]')?.classList.remove('active'); }
       /* v164: v režimu ＋ BOD vloží klepnutí do mapy průjezdní bod. Čas se
@@ -4226,6 +4280,55 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
          který se v některých prostředích tiše neprovede. */
       try{ form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); }catch(_){ }
     },true);
+  }
+  /* v169: druhé jednorázové doplnění dat cesty Norsko 2026 – po porovnání deníku
+     s kompletním výpisem z účtu. Doplní tři chybějící platby, opraví čtyři
+     nepřesné zápisy a odstraní jednu duplicitu. Stejně jako první blok je
+     PŘÍSNĚ vázáno na resetAt této cesty, takže po vyčištění deníku a založení
+     nové cesty se už nikdy nespustí; jednou provedené úpravy se nevracejí. */
+  function g2nBackfill2Norsko2026(){
+    try{
+      if(familyView)return;
+      const j=ensureJournal();
+      if(!j||j.resetAt!=='2026-06-28T03:06:23.867Z')return;
+      if(localStorage.getItem('g2n_backfill2_done_v1')==='1')return;
+      const byId=id=>j.entries.find(x=>x&&x.id===id);
+      let done=0;
+      const add=(id,obj,label)=>{ if(byId(id))return; upsertEntry(Object.assign({id:id},obj),label); done++; };
+      /* Chybějící platby z výpisu */
+      add('lodging-bjerkvik-2607',{type:'lodging',category:'accommodation',lodgingType:'hotel',
+        at:'2026-07-16T18:35:00.000Z',gps:{lat:68.55045,lon:17.55257,acc:0,ts:0},
+        amount:1256.58,currency:'NOK',rateCzk:2.1933,amountCzk:2756,note:'Bjerkvik Hotell'},'doplnění noclehu Bjerkvik');
+      add('expense-starbucks-2607',{type:'expense',category:'food',
+        at:'2026-07-03T20:30:00.000Z',gps:{lat:57.5936,lon:9.9639,acc:0,ts:0},
+        amount:102,currency:'DKK',rateCzk:3.2337,amountCzk:330,note:'Starbucks, terminál Hirtshals'},'doplnění útraty Hirtshals');
+      add('expense-smarthotel90-2607',{type:'expense',category:'other',
+        at:'2026-07-05T17:49:00.000Z',gps:{lat:58.87876,lon:5.72235,acc:0,ts:0},
+        amount:90,currency:'NOK',rateCzk:2.1510,amountCzk:194,note:'Smarthotel Forus – platba z výpisu'},'doplnění útraty Smarthotel');
+      /* Opravy podle výpisu */
+      const fix=(id,patch,label)=>{ const e=byId(id); if(!e||e.deleted)return; upsertEntry(Object.assign({},e,patch),label); done++; };
+      fix('expense-0aecc775-ac09-4a89-a46d-13aabbbb60dc',{amount:159,amountCzk:342},'oprava částky (JBOJ Gaupne)');
+      fix('expense-dd2357f4-fbe9-46e7-aa1a-f0d10c9b0eea',{amount:37.82,currency:'CZK',rateCzk:1,amountCzk:37.82,note:'Parkovné (EasyPark)'},'oprava parkovného');
+      fix('expense-dae229ff-1846-4309-81c0-39f08e210e87',{currency:'SEK',rateCzk:2.1885,amountCzk:210},'oprava měny (St1 Listerby)');
+      fix('fuel-0387e69a-e713-4b1c-88fc-682cd70a6fe1',{amount:35.50,amountCzk:858},'oprava tankování v Německu');
+      fix('expense-994f8d04-ff70-4320-8859-070b34e55e52',{at:'2026-07-16T15:35:00.000Z',gps:{lat:69.54186,lon:20.55,acc:0,ts:0}},'přesun útraty k tankování');
+      /* Duplicita 6. 7. */
+      const dup=byId('lodging-15992204-99b2-4e75-98fb-29b01d90dee6');
+      if(dup&&!dup.deleted){ upsertEntry(Object.assign({},dup,{deleted:true}),'odstranění duplicity'); done++; }
+      try{ localStorage.setItem('g2n_backfill2_done_v1','1'); }catch(_){ }
+      if(done) toast('Deník srovnán s výpisem z účtu ('+done+' úprav).');
+      /* v170: upřesnění popisu jedné doplněné položky – 90 NOK u Smarthotelu byly
+         dvě půllitrové vody. Běží pod vlastním zámkem, aby se dostalo i na deník,
+         kde už předchozí blok proběhl. */
+      if(localStorage.getItem('g2n_backfill2_note_v1')!=='1'){
+        const jj=ensureJournal();
+        const w=(jj&&Array.isArray(jj.entries)?jj.entries:[]).find(x=>x&&x.id==='expense-smarthotel90-2607');
+        if(w&&!w.deleted){
+          upsertEntry(Object.assign({},w,{category:'food',note:'2× voda 0,5 l (Smarthotel Forus)'}),'upřesnění popisu');
+        }
+        try{ localStorage.setItem('g2n_backfill2_note_v1','1'); }catch(_){ }
+      }
+    }catch(_){ }
   }
   function installDelegatedEvents(){
     /* v131: záchrana němých klepnutí. Na telefonu uživatele se dotyk na některých
@@ -8178,6 +8281,14 @@ body.family-view [data-tj-action="end"]{display:none!important}
 .tj-map-typepop[hidden]{display:none}
 .tj-map-typepop button{width:34px;height:34px;padding:0;border:1px solid #3a4a60;border-radius:9px;background:#141e2c;color:#cfe2f7;font-size:15px;opacity:.42;cursor:pointer}
 .tj-map-typepop button.active{opacity:1;border-color:#69afff;background:#1c2f47}
+/* v166: podnabídka TRASA (plánovaná / skutečná) a odlišené tlačítko FILTR. */
+.tj-map-routepop{position:absolute;z-index:9;top:46px;left:8px;display:flex;gap:6px;padding:6px;border-radius:12px;background:rgba(15,25,38,.95);border:1px solid #35506e;box-shadow:0 10px 24px #000a}
+.tj-map-routepop[hidden]{display:none}
+.tj-map-routepop button{padding:7px 11px;border:1px solid #3a4a60;border-radius:9px;background:#141e2c;color:#cfe2f7;font-size:12px;font-weight:700;cursor:pointer;opacity:.5}
+.tj-map-routepop button.active{opacity:1;border-color:#ff9db4;background:linear-gradient(135deg,#8f2340,#6d1830);color:#fff}
+.tj-map-toolbar .g2n-filter-btn{border-color:#7c6bd6!important;background:linear-gradient(135deg,#3b2f6e,#241c47)!important;color:#e2dcff!important}
+.tj-map-toolbar .g2n-filter-btn.active{border-color:#b3a6ff!important;background:linear-gradient(135deg,#5a48a8,#33285f)!important}
+
 /* v164: průjezdní body – malý bordó puntík, viditelný jen v režimu ＋ BOD. */
 .tj-map-marker.event.via>span{width:16px;height:16px;min-width:0;padding:0;border-radius:50%;background:#9b1b3c;border-color:#ffd7e2;font-size:0}
 .tj-map-toolbar button[data-tj-map-via].active{border-color:#ffb3c4!important;background:linear-gradient(135deg,#a52746,#761a31)!important;color:#fff!important}
