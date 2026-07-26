@@ -4,6 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
 <!-- go2no v146: dlaždice „Zápis během cesty“ na kartách cílů má místo písmen „Ab“ symbol dolaru (tvar dlaždice, barva i velikost zůstávají). -->
+<!-- go2no v179: soupisy noclehů a trajektů se v tisku vejdou na šířku A4 – tabulka má pevné rozvržení s podíly sloupců (u noclehů datum 12 %, souřadnice 17 %, název 31 %, typ 11 %, místní cena 14 %, koruny 15 %) a delší název se v něm ořízne, takže cena v korunách už nikdy nespadne mimo stránku. Na displeji zůstává posouvání do strany s plným textem. -->
 <!-- go2no v178: u tří noclehů byla poznámka psaná jako věta, takže se název ztrácel uprostřed – přepsány tak, aby název stál na začátku (Kjerag Lysebotn Camping – unimobuňka; Goksøyr Camping, Runde – zaplaceny 2 noci; Leaibevutna – ubytko před Nordkappem). Jmenovitý ruční přepis, žádné automatické hádání, s vlastním zámkem proti opakování. -->
 <!-- go2no v177: soupisy trajektů a noclehů drží pravidlo „co řádek, to jeden záznam“ – žádná buňka se nezalamuje ani neořezává, takže je vidět celý text; na úzkém displeji se tabulka posouvá vodorovně prstem, na papíře A4 se vejde celá. Pevné šířky sloupců zrušeny, šířka se řídí obsahem. -->
 <!-- go2no v176: název noclehu v soupisu drží jednu řádku – text, který se do sloupce nevejde, se ořízne místo zalamování (tabulka s pevným rozvržením, celý název zůstává v bublině a v deníku). Platí na displeji i v tisku. -->
@@ -2852,13 +2853,13 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       ${Object.keys(perC).map(cc=>{const p=perC[cc];return `<tr><td>${esc(LBL[cc]||'Jinde')}</td><td>${p.n}×</td><td>${fmtN(p.l,1)} l</td><td>${p.l>0?fmtN(p.czk/p.l,2):'—'}</td><td>${fmtCzkInt(Math.ceil(p.czk))}</td></tr>`;}).join('')}</table>
       ${(()=>{ const fer=expenseEnts.filter(e=>(e.category||'')==='ferry').sort((a,b)=>ms(a.at)-ms(b.at));
         if(!fer.length)return '';
-        return `<h3>Trajekty</h3><div class="tj-table-scroll"><table class="tj-paper-table tj-table-rows">${fer.map(e=>`<tr><td style="width:78px">${esc(exportDateParts(e.at).date)}</td><td>${esc(String(e.note||'trajekt'))}</td><td>${e.amount!=null?esc(fmtN(e.amount,2)+' '+(e.currency||'')):''}</td><td>${fmtCzkInt(czkOf(e))}</td></tr>`).join('')}<tr class="total"><td colspan="3">Trajekty celkem · ${fer.length}×</td><td>${fmtCzkInt(fer.reduce((s,e)=>s+czkOf(e),0))}</td></tr></table></div>`; })()}
+        return `<h3>Trajekty</h3><div class="tj-table-scroll"><table class="tj-paper-table tj-table-rows tj-table-ferry">${fer.map(e=>`<tr><td style="width:78px">${esc(exportDateParts(e.at).date)}</td><td>${esc(String(e.note||'trajekt'))}</td><td>${e.amount!=null?esc(fmtN(e.amount,2)+' '+(e.currency||'')):''}</td><td>${fmtCzkInt(czkOf(e))}</td></tr>`).join('')}<tr class="total"><td colspan="3">Trajekty celkem · ${fer.length}×</td><td>${fmtCzkInt(fer.reduce((s,e)=>s+czkOf(e),0))}</td></tr></table></div>`; })()}
       ${(()=>{ /* v175: soupis noclehů – jeden řádek na nocleh: datum, poloha, název, typ a cena v místní měně i v korunách. */
         const lg=lodgingEnts.slice().sort((a,b)=>ms(a.at)-ms(b.at));
         if(!lg.length)return '';
         const pos=e=>{ const g=e&&e.gps; return (g&&Number.isFinite(Number(g.lat))&&Number.isFinite(Number(g.lon)))?(Number(g.lat).toFixed(4)+', '+Number(g.lon).toFixed(4)):'—'; };
         const loc=e=>e.amount!=null?(fmtN(e.amount,2)+' '+(e.currency||'')):'';
-        return `<h3>Noclehy</h3><div class="tj-table-scroll"><table class="tj-paper-table tj-table-rows">${lg.map(e=>`<tr><td>${esc(exportDateParts(e.at).date)}</td><td>${esc(pos(e))}</td><td title="${escAttr(String(e.note||''))}">${esc(String(e.note||'—'))}</td><td>${esc(TJ_LODGING[e.lodgingType]||'')}</td><td>${esc(loc(e))}</td><td>${fmtCzkInt(czkOf(e))}</td></tr>`).join('')}<tr class="total"><td colspan="5">Noclehy celkem · ${lg.length}×</td><td>${fmtCzkInt(lg.reduce((s,e)=>s+czkOf(e),0))}</td></tr></table></div>`; })()}
+        return `<h3>Noclehy</h3><div class="tj-table-scroll"><table class="tj-paper-table tj-table-rows tj-table-lodging">${lg.map(e=>`<tr><td>${esc(exportDateParts(e.at).date)}</td><td>${esc(pos(e))}</td><td title="${escAttr(String(e.note||''))}">${esc(String(e.note||'—'))}</td><td>${esc(TJ_LODGING[e.lodgingType]||'')}</td><td>${esc(loc(e))}</td><td>${fmtCzkInt(czkOf(e))}</td></tr>`).join('')}<tr class="total"><td colspan="5">Noclehy celkem · ${lg.length}×</td><td>${fmtCzkInt(lg.reduce((s,e)=>s+czkOf(e),0))}</td></tr></table></div>`; })()}
       <p class="muted">Země je odvozena ze zjednodušených hranic podle GPS tankování; částky v Kč jsou zaokrouhleny nahoru po jednotlivých záznamech, průměry se počítají z přesných hodnot.</p>`;
   }
   /* v133: tisková podoba deníku – kompaktní řádky den po dni. */
@@ -2959,9 +2960,22 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       td:last-child{text-align:right;white-space:nowrap}
       tr{page-break-inside:avoid}
       tr.total td{font-weight:800;border-top:2px solid #b9b09a;border-bottom:none}
+      /* v179: na papíře musí tabulka zůstat v šířce stránky. Rozvržení je pevné,
+         sloupec s názvem dostane zbytek místa a delší text se v něm ořízne –
+         cena v korunách tak nikdy nespadne mimo stránku. */
       .tj-table-scroll{overflow:visible}
-      table.tj-table-rows{width:100%}
-      table.tj-table-rows td{white-space:nowrap}
+      table.tj-table-rows{width:100%;table-layout:fixed}
+      table.tj-table-rows td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      table.tj-table-lodging td:nth-child(1){width:12%}
+      table.tj-table-lodging td:nth-child(2){width:17%}
+      table.tj-table-lodging td:nth-child(3){width:31%}
+      table.tj-table-lodging td:nth-child(4){width:11%}
+      table.tj-table-lodging td:nth-child(5){width:14%}
+      table.tj-table-lodging td:nth-child(6){width:15%}
+      table.tj-table-ferry td:nth-child(1){width:14%}
+      table.tj-table-ferry td:nth-child(2){width:52%}
+      table.tj-table-ferry td:nth-child(3){width:17%}
+      table.tj-table-ferry td:nth-child(4){width:17%}
       .muted{color:#6f675a;font-size:11px;margin:6px 0 0}
       .sheet{padding:0}
       h4{font-size:12.5px;margin:0 0 7px;color:#14171c}
@@ -8453,6 +8467,12 @@ body.family-view [data-tj-action="end"]{display:none!important}
  body.g2n-printing #tjPrintSheet .tj-report-targets span{border:1px solid #cfc9ba;color:#3c3730}
  body.g2n-printing #tjPrintSheet .tj-report-card p{color:#6f675a}
  body.g2n-printing #tjPrintSheet h2{font-size:15px;margin:16px 0 6px;page-break-after:avoid}
+ /* v179: totéž pro arch tištěný uvnitř stránky. */
+ body.g2n-printing #tjPrintSheet .tj-table-scroll{overflow:visible}
+ body.g2n-printing #tjPrintSheet table.tj-table-rows{width:100%;table-layout:fixed}
+ body.g2n-printing #tjPrintSheet table.tj-table-rows td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ body.g2n-printing #tjPrintSheet table.tj-table-lodging td:nth-child(3){width:31%}
+ body.g2n-printing #tjPrintSheet table.tj-table-ferry td:nth-child(2){width:52%}
 }
 @media(max-width:420px){.audit-dash-actions{gap:7px}}
 </style>
