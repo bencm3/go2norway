@@ -4,6 +4,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
 <!-- go2no v146: dlaždice „Zápis během cesty“ na kartách cílů má místo písmen „Ab“ symbol dolaru (tvar dlaždice, barva i velikost zůstávají). -->
+<!-- go2no v161: v nastavení přibyla viditelná volba automatické synchronizace se čtyřmi možnostmi v jedné řádce – Vypnuto (výchozí), Jen import, Jen export, Automaticky – s krátkým popiskem, co která znamená. Při vypnuté automatice se stav přenáší výhradně tlačítky Export a Import. Rodinný náhled je z podstaty jen ke čtení a stahuje dál vždy. -->
+<!-- go2no v160: pojistka proti přepsání novějšího online stavu. Automatické odeslání se napřed zeptá serveru na čas poslední změny; leží-li tam novější stav, než jaký toto zařízení naposledy stáhlo (nebo nestáhlo vůbec), odeslání se zastaví a uživatel je vyzván nejprve importovat. Ruční Export stavu on-line zůstává plně v rukou uživatele. -->
 <!-- go2no v159: import stavu ze serveru už nespadne, když je úložiště prohlížeče plné. Uložení nastavení se zkusí nejprve celé, pak odlehčené bez snímku počasí, a když ani to neprojde, data zůstanou načtená v paměti a uživatel dostane srozumitelnou hlášku místo přerušeného stahování. -->
 <!-- go2no v158: tmavý růžek zpoza tlačítka Reporty byl pruh s attribucí OpenStreetMap, který seděl v pravém dolním rohu mapy přesně pod tlačítkem. Attribuce se přesunula do levého dolního rohu – tam ji nic nepřekrývá a zůstává čitelná, jak má být. -->
 <!-- go2no v157: v celoobrazovkové mapě má rám mapy nulové zaoblení, okraj i stín – z pravého dolního rohu jinak zpoza tlačítka Reporty vykukoval tmavý růžek podkladu okna. -->
@@ -1254,6 +1256,18 @@ body.editing .card > .chead > .headboxes > .targetbox > b.ed.editing{box-shadow:
           </div>
           <button class="primary sync-html-export" id="doExport">Export HTML…</button>
           <div class="syncstatus" id="syncStatus">Online režim zatím není přihlášený.</div>
+          <!-- v161: viditelná volba automatické synchronizace. Výchozí je vypnuto,
+               tedy přenos stavu výhradně tlačítky Export a Import. -->
+          <div class="g2n-syncmode-row">
+            <b>Automatická synchronizace</b>
+            <div class="g2n-syncmode-choices">
+              <button type="button" data-sync-mode="off">Vypnuto</button>
+              <button type="button" data-sync-mode="import">Jen import</button>
+              <button type="button" data-sync-mode="export">Jen export</button>
+              <button type="button" data-sync-mode="auto">Automaticky</button>
+            </div>
+            <span id="syncModeNote"></span>
+          </div>
           <div class="g2n-family-mode-box" id="familyModeBox">
             <div class="g2n-family-mode-copy"><b>Rodinný náhled na tomto zařízení</b><span>Zakáže úpravy, zápisy i export. Aktuální online stav se načte při otevření, po návratu do aplikace a každou minutu na pozadí.</span></div>
             <label class="g2n-mode-switch" title="Přepnout rodinný náhled na tomto zařízení"><input id="familyModeToggle" type="checkbox" role="switch" aria-label="Rodinný náhled na tomto zařízení"><i></i></label>
@@ -5881,6 +5895,24 @@ const SUPABASE_URL = 'https://fljhnqvuluekljwwcuxz.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_HrvoAuNp5D4piWivbi7Fjw_QjwOGRfB';
 const TRIP_ID = 'go2norway';
 const ONLINE_LAST_KEY = 'go2norway_last_online_saved_at';
+/* v161: režim automatické synchronizace volí uživatel v nastavení.
+   'off' (výchozí) – nic se neděje samo, stav se přenáší jen tlačítky.
+   'import' – samo se jen stahuje. 'export' – samo se jen odesílá.
+   'auto' – obojí. Rodinný náhled je z podstaty jen ke čtení a stahuje vždy. */
+const SYNC_MODE_KEY = 'go2no_sync_mode_v1';
+function syncMode(){ try{ const v=localStorage.getItem(SYNC_MODE_KEY); return ['off','import','export','auto'].includes(v)?v:'off'; }catch(e){ return 'off'; } }
+function setSyncMode(v){ try{ localStorage.setItem(SYNC_MODE_KEY, v); }catch(e){} updateSyncModeUI(); updateOnlineLine(); }
+function autoImportAllowed(){ const m=syncMode(); return m==='import'||m==='auto'; }
+function autoExportAllowed(){ const m=syncMode(); return m==='export'||m==='auto'; }
+function updateSyncModeUI(){
+  const m=syncMode();
+  document.querySelectorAll('[data-sync-mode]').forEach(b=>b.classList.toggle('active', b.dataset.syncMode===m));
+  const note=document.getElementById('syncModeNote');
+  if(note) note.textContent = m==='off' ? 'Automatika je vypnutá – stav se přenáší jen tlačítky Export a Import.'
+    : m==='import' ? 'Samo se jen stahuje online stav; odeslání zůstává na tlačítku.'
+    : m==='export' ? 'Samo se jen odesílá; stažení zůstává na tlačítku.'
+    : 'Odesílá i stahuje samo.';
+}
 const DEVICE_MODE_KEY = 'go2no_device_mode_v1';
 const FAMILY_ADMIN_EMAIL_KEY = 'go2no_family_admin_email_v1';
 const FAMILY_AUTO_DOWNLOAD_MS = 60 * 1000;
@@ -5983,11 +6015,34 @@ function queueAutoSync(reason){
 }
 async function autoSyncUpload(reason){
   if(familyView || onlineApplying || !onlineDirty || onlineUploadInProgress) return;
+  if(!autoExportAllowed()) return;
   const client=getSupabase(); if(!client) return;
   const { data } = await client.auth.getSession();
   const session=data && data.session;
   if(!session){ updateOnlineLine(); return; }
   onlineEmail=session.user && session.user.email || onlineEmail;
+  /* v160: pojistka proti přepsání novějšího online stavu. Automatické odeslání
+     se provede jen tehdy, když toto zařízení zná poslední změnu na serveru.
+     Leží-li na serveru novější stav, než jaký si zařízení naposledy stáhlo
+     (typicky zápisy z telefonu, zatímco počítač drží starší kopii), odeslání se
+     zablokuje a uživatel dostane výzvu nejprve importovat. Ruční tlačítko
+     Export stavu on-line zůstává nedotčené – tam rozhoduje uživatel. */
+  try{
+    const { data:head, error } = await client.from('trip_state').select('updated_at').eq('id', TRIP_ID).single();
+    if(!error && head && head.updated_at){
+      const known=localStorage.getItem(ONLINE_LAST_KEY)||'';
+      if(known && new Date(head.updated_at).getTime() > new Date(known).getTime()+1000){
+        syncSetStatus('Automatické odeslání zastaveno: na serveru je novější stav ('+fmtOnlineTime(head.updated_at)+') než v tomto zařízení.\nNejprve použij Import stavu on-line, ať nepřepíšeš novější data.', 'err');
+        updateOnlineLine('error');
+        return;
+      }
+      if(!known){
+        syncSetStatus('Automatické odeslání zastaveno: toto zařízení ještě nestáhlo online stav.\nNejprve použij Import stavu on-line.', 'err');
+        updateOnlineLine('error');
+        return;
+      }
+    }
+  }catch(e){ /* nedostupná kontrola nebrání běžnému chodu */ }
   await syncUpload(true);
 }
 setInterval(()=>{ if(onlineDirty) autoSyncUpload('periodická kontrola'); }, ONLINE_PERIODIC_MS);
@@ -6133,6 +6188,7 @@ async function syncDownload(silent){
 }
 async function syncAutoDownload(){
   if(onlineDownloadInProgress || onlineUploadInProgress || onlineDirty || onlineApplying) return;
+  if(!familyView && !autoImportAllowed()) return;
   const ae=document.activeElement;
   if(ae && ae.matches && ae.matches('input, textarea, select, [contenteditable="true"]')) return;
   if(document.querySelector('#prepChecklistModal.show.editing, #settings.show')) return;
@@ -6165,6 +6221,9 @@ async function syncAutoDownload(){
 setInterval(()=>{ syncAutoDownload().catch(()=>{}); }, ONLINE_AUTO_DOWNLOAD_MS);
 function wireSyncUI(){
   const a=document.getElementById('syncLogin'), p=document.getElementById('syncPasswordLogin'), b=document.getElementById('syncLogout'), c=document.getElementById('syncUpload'), d=document.getElementById('syncDownload');
+  /* v161: napojení voleb automatické synchronizace. */
+  document.querySelectorAll('[data-sync-mode]').forEach(b=>{ b.onclick=()=>setSyncMode(b.dataset.syncMode); });
+  updateSyncModeUI();
   if(a) a.onclick=syncLogin;
   if(p) p.onclick=syncPasswordLogin;
   if(b) b.onclick=syncLogout;
@@ -7809,6 +7868,14 @@ body.family-view .familybar{display:none!important}
 body.family-view .family-watermark{display:block}
 /* Gear remains available specifically so that the family-mode switch is reachable. */
 body.family-view #btnSettings{display:inline-grid!important;place-items:center!important}
+/* v161: volba automatické synchronizace – čtyři možnosti v jedné řádce,
+   oddělené jen linkou, bez dalšího rámečku uvnitř sekce. */
+.g2n-syncmode-row{margin-top:10px;padding:9px 0 0;border-top:1px solid var(--line)}
+.g2n-syncmode-row>b{display:block;font-size:13px;margin-bottom:6px}
+.g2n-syncmode-choices{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.g2n-syncmode-choices button{padding:7px 4px;border:1px solid #3a4a60;border-radius:9px;background:#141e2c;color:#cfe2f7;font-size:11.5px;font-weight:700;cursor:pointer}
+.g2n-syncmode-choices button.active{border-color:#69afff;background:linear-gradient(135deg,#236fc4,#16477f);color:#fff}
+#syncModeNote{display:block;margin-top:6px;color:var(--mut);font-size:11.5px}
 /* v148: řádek oddělený linkou, ne další rámeček v rámečku. */
 .g2n-family-mode-box{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding:9px 0 0;border:0;border-top:1px solid var(--line);border-radius:0;background:none}
 .g2n-family-mode-copy{min-width:0}.g2n-family-mode-copy b{display:block;color:#e7f2ff;font-size:13px;line-height:1.2}.g2n-family-mode-copy span{display:block;color:#a9bfd5;font-size:11px;line-height:1.34;margin-top:4px}
