@@ -4,6 +4,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
 <!-- go2no v146: dlaždice „Zápis během cesty“ na kartách cílů má místo písmen „Ab“ symbol dolaru (tvar dlaždice, barva i velikost zůstávají). -->
+<!-- go2no v172: uložení formuláře deníku i tehdy, když klepnutí zachytí jiná vrstva. Posluchač se při puštění prstu zeptá prohlížeče na všechny prvky v daném bodě; leží-li pod prstem odesílací tlačítko formuláře, odešle formulář sám a klepnutí do překrývající vrstvy pohltí. Nezávisí tedy na tom, co přesně tlačítko překrývá. -->
+<!-- go2no v171: nalezena skutečná příčina „mrtvého“ tlačítka Uložit. Plovoucí tlačítko Reporty je fixované v pravém dolním rohu a leží NAD modálem (vrstva 69 proti 60), takže překrývalo pravé tlačítko v řádku akcí formuláře – klepnutí dopadlo na ně, ne na uložení; levé „Zpět“ proto fungovalo. Ve formuláři se teď plovoucí tlačítko schová a v deníku i přehledech zůstává dole volné místo, aby poslední řádek nekončil pod ním. -->
 <!-- go2no v170: položka 90 NOK u Smarthotelu Forus upřesněna na „2× voda 0,5 l“ a přeřazena z ostatních útrat mezi potraviny. Běží pod vlastním zámkem, takže se úprava provede i v deníku, kde už předchozí srovnání s výpisem proběhlo. -->
 <!-- go2no v169: druhé jednorázové srovnání deníku s výpisem z účtu – doplněny tři chybějící platby (Bjerkvik Hotell 1 256,58 NOK, Starbucks Hirtshals 102 DKK, Smarthotel Forus 90 NOK), opraveny čtyři zápisy (JBOJ 150→159 NOK, parkovné 17,25 NOK→37,82 Kč EasyPark, kola a kafe z NOK na SEK, německé tankování 29,83→35,50 EUR), útrata za kafe přesunuta k tankování u Samuelsbergu a odstraněn duplicitní nocleh z 6. 7. Vázáno na resetAt této cesty, se zámkem proti opakování. -->
 <!-- go2no v168: přepočet měn už nepoužívá jediný kurz, ale kurz platný v den zápisu. Z výpisu z účtu je u každé platby známý kurz banky i datum, takže „oficiální“ kurz daného dne vychází jako kurz banky děleno přirážkou 1,04; první odvozené hodnoty se od kurzovního lístku ECB z 2. 7. liší jen o 0,1–0,3 %, což potvrzuje správnost. Přepočet je částka × kurz dne × 1,04, zaokrouhleno nahoru na desetikoruny; u jednotlivých plateb tak vychází rozdíl proti výpisu jen jednotky korun. -->
@@ -2023,6 +2025,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     registerIntegration();
     installDelegatedEvents();
     installFormEnterSubmit();
+    installCoveredSubmitRescue();
     installMapExitHandling();
     window.go2noTripMap={open:()=>renderTripMap(true)};
     installFab();
@@ -2521,6 +2524,13 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
        takže mezi nimi lze přepínat jediným klepnutím bez horních záložek. */
     const modal=document.getElementById('tjModal'), open=!!(modal&&modal.classList.contains('show'));
     const view=open?String((modalBody()||{}).dataset&&modalBody().dataset.tjView||''):'';
+    /* v171: ve formuláři se plovoucí tlačítko schová. Leží totiž pevně v pravém
+       dolním rohu NAD modálem (vrstva 69 proti 60), takže překrývalo pravé
+       tlačítko v řádku akcí – typicky „Uložit …“. Klepnutí pak dopadlo na
+       tlačítko Reporty, ne na uložení; levé tlačítko „Zpět“ přitom fungovalo.
+       Přepínání Deník/Přehledy ve formuláři stejně nedává smysl. */
+    if(view==='form'||view==='menu'){ b.style.display='none'; return; }
+    b.style.display='';
     let act='reports-menu', label='Reporty', icon='📘';
     if(view==='journal'){ act='open-report'; label='Přehledy'; icon='📊'; }
     else if(view==='report'){ act='open-journal'; label='Deník'; icon='📘'; }
@@ -4267,6 +4277,37 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   /* v165: záložní odeslání klávesou. V poli formuláře deníku odešle Enter (na
      mobilní klávesnici ✓ / Hotovo) rovnou celý formulář, takže uložit lze i tehdy,
      když se klepnutí na tlačítko z jakéhokoli důvodu ztratí. */
+  /* v172: uložení formuláře i tehdy, když klepnutí zachytí něco jiného.
+     Dosud se spoléhalo na to, že se dotyk trefí přímo do tlačítka. Pokud přes
+     tlačítko leží jakákoli plovoucí vrstva, dotyk skončí na ní a formulář se
+     neuloží – přesně to hlásil uživatel u tlačítka „Uložit útratu“. Tento
+     posluchač se proto ptá prohlížeče, JAKÉ VŠECHNY prvky se v daném bodě
+     nacházejí; najde-li pod prstem odesílací tlačítko formuláře deníku, odešle
+     formulář sám a následné klepnutí do překrývající vrstvy pohltí. */
+  function installCoveredSubmitRescue(){
+    document.addEventListener('pointerup',e=>{
+      try{
+        const modal=document.getElementById('tjModal');
+        if(!modal||!modal.classList.contains('show'))return;
+        if(!document.elementsFromPoint)return;
+        const list=document.elementsFromPoint(e.clientX,e.clientY)||[];
+        let btn=null;
+        for(const el of list){ if(el&&el.tagName==='BUTTON'&&el.type==='submit'&&el.closest&&el.closest('#tjModal')){ btn=el; break; } }
+        if(!btn||!btn.form)return;
+        if(e.target===btn||(btn.contains&&btn.contains(e.target)))return; /* běžná cesta */
+        if(Date.now()<(window.__g2nCoveredSubmitAt||0))return;
+        window.__g2nCoveredSubmitAt=Date.now()+900;
+        window.__g2nSwallowClickUntil=Date.now()+700;
+        btn.form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      }catch(_){ }
+    },true);
+    document.addEventListener('click',e=>{
+      if(Date.now()>=(window.__g2nSwallowClickUntil||0))return;
+      const t=e.target;
+      if(t&&t.closest&&t.closest('#tjModal'))return;
+      e.preventDefault(); e.stopPropagation();
+    },true);
+  }
   function installFormEnterSubmit(){
     document.addEventListener('keydown',e=>{
       if(e.key!=='Enter'||e.shiftKey)return;
@@ -8281,6 +8322,10 @@ body.family-view [data-tj-action="end"]{display:none!important}
 .tj-map-typepop[hidden]{display:none}
 .tj-map-typepop button{width:34px;height:34px;padding:0;border:1px solid #3a4a60;border-radius:9px;background:#141e2c;color:#cfe2f7;font-size:15px;opacity:.42;cursor:pointer}
 .tj-map-typepop button.active{opacity:1;border-color:#69afff;background:#1c2f47}
+/* v171: v deníku a přehledech zůstává dole volné místo, aby poslední řádek
+   nekončil pod plovoucím tlačítkem Reporty. */
+#tjModal.tj-journal-mode .sheet-body{padding-bottom:84px}
+
 /* v166: podnabídka TRASA (plánovaná / skutečná) a odlišené tlačítko FILTR. */
 .tj-map-routepop{position:absolute;z-index:9;top:46px;left:8px;display:flex;gap:6px;padding:6px;border-radius:12px;background:rgba(15,25,38,.95);border:1px solid #35506e;box-shadow:0 10px 24px #000a}
 .tj-map-routepop[hidden]{display:none}
