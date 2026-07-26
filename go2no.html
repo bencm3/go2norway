@@ -4,6 +4,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
 <!-- go2no v146: dlaždice „Zápis během cesty“ na kartách cílů má místo písmen „Ab“ symbol dolaru (tvar dlaždice, barva i velikost zůstávají). -->
+<!-- go2no v165: spolehlivější ukládání formulářů deníku. Záchrana němého klepnutí u odesílacích tlačítek nyní posílá formuláři přímo událost submit místo .click(), která se na některých zařízeních neprojevila (tlačítko „Uložit přenocování“ nereagovalo). Navíc lze každý formulář deníku odeslat klávesou Enter (na mobilní klávesnici ✓ / Hotovo) z libovolného textového pole. -->
+<!-- go2no v164: průjezdní body skutečné trasy. V liště mapy je tlačítko ＋ BOD; po jeho zapnutí klepnutí do mapy vloží bod, jehož čas se dopočítá promítnutím na nejbližší úsek dosavadní trasy, takže se zařadí přesně mezi správné dva zápisy. Bod je běžný záznam typu 'via' – synchronizuje se a je součástí dat cesty, ale nemá vlastní symbol, nezobrazuje se v deníku ani v přehledech a slouží jen jako vrchol vykreslované čáry. V režimu ＋ BOD jsou body vidět jako malé bordó puntíky a klepnutím se mažou. -->
+<!-- go2no v163: cíle v mapě mají už jen dva stavy – navštívený zeleně, nenavštívený šedě, bez přeškrtávání (na displeji i v exportu). Jednotlivé cíle lze navíc na mapě „zhasnout“ tlačítkem Skrýt na mapě v jejich detailu; chip ⦸ ve filtru je dočasně odkryje, aby šly zase vrátit. Skrytí je uložené v zařízení a itinerář ani deník nijak nemění. -->
 <!-- go2no v162: (1) hláška po přihlášení nyní odpovídá zvolenému režimu synchronizace, netvrdí natvrdo, že je automatika zapnutá. (2) Sekce Online synchronizace se nesbaluje – šipka mátla a po sbalení odkryla pod nadpisem panel „Nová cesta s výmazem deníku“. (3) Opravena pojistka z v160: porovnává se identita časového razítka serveru s tím, které zařízení naposledy zapsalo nebo stáhlo (drobný rozdíl hodin telefonu a serveru dřív hlásil cizí změnu); po odeslání se ukládá razítko tak, jak ho eviduje server. (4) Přihlašovací blok se přesunul pod volby automatické synchronizace, nad rodinný náhled, jako lícovaný řádek bez rámečku. -->
 <!-- go2no v161: v nastavení přibyla viditelná volba automatické synchronizace se čtyřmi možnostmi v jedné řádce – Vypnuto (výchozí), Jen import, Jen export, Automaticky – s krátkým popiskem, co která znamená. Při vypnuté automatice se stav přenáší výhradně tlačítky Export a Import. Rodinný náhled je z podstaty jen ke čtení a stahuje dál vždy. -->
 <!-- go2no v160: pojistka proti přepsání novějšího online stavu. Automatické odeslání se napřed zeptá serveru na čas poslední změny; leží-li tam novější stav, než jaký toto zařízení naposledy stáhlo (nebo nestáhlo vůbec), odeslání se zastaví a uživatel je vyzván nejprve importovat. Ruční Export stavu on-line zůstává plně v rukou uživatele. -->
@@ -1911,7 +1914,9 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
 /* v47–v48 – Pauzy, lokální fotografie, dynamická mapa a oprava markerů */
 .tj-photo-inline{display:flex;align-items:center;gap:8px;margin-top:7px}.tj-photo-thumb{width:52px;height:52px;object-fit:cover;border-radius:10px;border:1px solid #47658a;background:#0e1724;box-shadow:0 2px 8px #0008;cursor:pointer;touch-action:manipulation}.tj-photo-thumb:active{filter:brightness(1.15)}.tj-entry.has-photo .tj-entry-main{padding-right:0}.tj-entry-photo{margin-left:auto;align-self:center}.tj-entry-photo .tj-photo-thumb{width:48px;height:48px}.tj-photo-card{border:1px solid var(--tj-line);border-radius:13px;background:#0e1724;padding:10px;margin:9px 0}.tj-photo-card img{display:block;width:100%;max-height:min(62vh,520px);object-fit:contain;background:#070d15;border-radius:10px}.tj-photo-card small{display:block;color:#9fb1c8;font-size:11px;line-height:1.35;margin-top:8px}.tj-photo-preview{display:flex;align-items:center;gap:9px;border:1px dashed #405570;border-radius:11px;padding:8px 9px;margin-top:9px;color:#a9bad0;font-size:11px;line-height:1.35}.tj-photo-preview img{width:58px;height:58px;object-fit:cover;border-radius:9px;border:1px solid #456187}.tj-photo-preview b{display:block;color:#dfeafe;font-size:12px;margin-bottom:2px}.tj-photo-preview small{display:block;color:#9fb1c8}.tj-photo-local{color:#82dca8}.tj-photo-remote{color:#9ed0ff}
 .tj-map-intro{color:#9eafc5;font-size:12px;line-height:1.36;margin:0 0 10px}.tj-map-shell{border:1px solid var(--tj-line);border-radius:15px;overflow:hidden;background:#0b121d;box-shadow:0 4px 20px #0007}.tj-map-toolbar{display:flex;gap:7px;flex-wrap:wrap;padding:9px;border-bottom:1px solid #2e405a;background:#111d2e}.tj-map-toolbar button{display:inline-flex!important;width:auto!important;align-items:center;justify-content:center;gap:0;margin:0!important;padding:7px 10px!important;border-radius:9px!important;font-size:11.5px!important;font-weight:700;letter-spacing:.4px}.tj-map-toolbar button.active{background:#1e5eaa!important;border-color:#6aaeff!important;color:#fff!important}.tj-map-viewport{position:relative;height:min(56vh,470px);min-height:300px;overflow:hidden;touch-action:none;background:radial-gradient(circle at 50% 46%,#294c69,#122132 58%,#0b111a)}.tj-map-tiles,.tj-map-overlay,.tj-map-markers{position:absolute;inset:0;pointer-events:none}.tj-map-tiles{transform-origin:50% 50%;will-change:transform}.tj-map-tile{position:absolute;width:256px;height:256px;max-width:none;user-select:none;-webkit-user-drag:none}.tj-map-plan{fill:none;stroke:#f2ad4e;stroke-width:3.1;stroke-dasharray:9 7;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 2px #000a);opacity:.88}/* v156: skutečně projetá trasa je bordó a silnější – na podkladu mapy je výraznější než modrá. */
-.tj-map-route{fill:none;stroke:#9b1b3c;stroke-width:4.6;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 2px #000b);opacity:.96}.tj-map-route-dot{fill:#ffe6ec;stroke:#7d132f;stroke-width:2}.tj-map-marker{position:absolute;z-index:4;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;touch-action:manipulation;user-select:none}.sheet .tj-map-viewport button.tj-map-marker{position:absolute!important;display:block!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:inherit!important;box-shadow:none!important;font-size:inherit!important;font-weight:inherit!important;line-height:1!important}.tj-map-marker>span{display:flex;align-items:center;justify-content:center;width:31px;height:31px;border-radius:50%;border:2px solid #dcecff;background:#1d5fa8;color:#fff;font:900 13px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-shadow:0 2px 8px #000b}.tj-map-marker.target.pending>span{background:#1e5fae;border-color:#b9ddff}.tj-map-marker.target.visited>span{background:#207246;border-color:#b9ffd3}.tj-map-marker.target.skipped>span{background-color:#353d49;border-color:#adb7c4;color:#e2e8ef;position:relative;overflow:hidden}.tj-map-marker.target.skipped>span:after{content:"";position:absolute;inset:-3px;background:linear-gradient(to bottom right,transparent calc(50% - 1.5px),rgba(255,255,255,.92) calc(50% - 1.5px),rgba(255,255,255,.92) calc(50% + 1.5px),transparent calc(50% + 1.5px));pointer-events:none}.tj-map-marker.top>span{width:35px;height:35px;border-radius:10px;border-color:#ffe18a;background:linear-gradient(135deg,#856318,#4e3810);color:#fff7d2;font-size:11px;box-shadow:0 2px 9px #000c,0 0 0 2px #f6cf5e22}.tj-map-marker.top>span:before{content:"★";position:absolute;right:-7px;top:-8px;font-size:14px;color:#ffe38d;text-shadow:0 1px 2px #000}.tj-map-marker.event>span{width:29px;height:29px;border-radius:10px;background:#172b45;border-color:#77baff;font-size:16px}.tj-map-marker.event.pause>span{background:#50385f;border-color:#e0a6ff}.tj-map-marker.event.fuel>span{background:#15496e;border-color:#75c9ff}.tj-map-marker.event.lodging>span{background:#17543b;border-color:#8fe0b1}.tj-map-marker.event.food>span{background:#674416;border-color:#ffd278}.tj-map-marker.event.parking>span{background:#1e53a0;border-color:#8dbbff}.tj-map-marker.event.ferry>span{background:#1c5472;border-color:#8bd6ff}.tj-map-marker.event.start>span{background:#1b693f;border-color:#9ce5b8}.tj-map-marker.event.other>span{background:#3e4655;border-color:#b7c3d2}.tj-map-marker.current>span{box-shadow:0 0 0 4px #77baff3b,0 2px 9px #000d;animation:tjMapCurrent 1.8s ease-in-out infinite}@keyframes tjMapCurrent{50%{transform:scale(1.12);box-shadow:0 0 0 8px #77baff12,0 2px 9px #000d}}/* v158: attribuce OpenStreetMap patří do LEVÉHO dolního rohu. Vpravo ji
+.tj-map-route{fill:none;stroke:#9b1b3c;stroke-width:4.6;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 2px #000b);opacity:.96}.tj-map-route-dot{fill:#ffe6ec;stroke:#7d132f;stroke-width:2}.tj-map-marker{position:absolute;z-index:4;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;touch-action:manipulation;user-select:none}.sheet .tj-map-viewport button.tj-map-marker{position:absolute!important;display:block!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:inherit!important;box-shadow:none!important;font-size:inherit!important;font-weight:inherit!important;line-height:1!important}.tj-map-marker>span{display:flex;align-items:center;justify-content:center;width:31px;height:31px;border-radius:50%;border:2px solid #dcecff;background:#1d5fa8;color:#fff;font:900 13px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-shadow:0 2px 8px #000b}/* v163: dva stavy cílů – navštívený zeleně, nenavštívený šedě. Modrá „čeká“
+   i přeškrtnutí vynechaných se ruší; pro knihu je čitelnější prostý rozdíl. */
+.tj-map-marker.target.pending>span{background:#3d4653;border-color:#aab6c6}.tj-map-marker.target.visited>span{background:#207246;border-color:#b9ffd3}.tj-map-marker.target.skipped>span{background-color:#3d4653;border-color:#aab6c6;color:#e9eef5}/* v163: přeškrtnutí odstraněno */.tj-map-marker.top>span{width:35px;height:35px;border-radius:10px;border-color:#ffe18a;background:linear-gradient(135deg,#856318,#4e3810);color:#fff7d2;font-size:11px;box-shadow:0 2px 9px #000c,0 0 0 2px #f6cf5e22}.tj-map-marker.top>span:before{content:"★";position:absolute;right:-7px;top:-8px;font-size:14px;color:#ffe38d;text-shadow:0 1px 2px #000}.tj-map-marker.event>span{width:29px;height:29px;border-radius:10px;background:#172b45;border-color:#77baff;font-size:16px}.tj-map-marker.event.pause>span{background:#50385f;border-color:#e0a6ff}.tj-map-marker.event.fuel>span{background:#15496e;border-color:#75c9ff}.tj-map-marker.event.lodging>span{background:#17543b;border-color:#8fe0b1}.tj-map-marker.event.food>span{background:#674416;border-color:#ffd278}.tj-map-marker.event.parking>span{background:#1e53a0;border-color:#8dbbff}.tj-map-marker.event.ferry>span{background:#1c5472;border-color:#8bd6ff}.tj-map-marker.event.start>span{background:#1b693f;border-color:#9ce5b8}.tj-map-marker.event.other>span{background:#3e4655;border-color:#b7c3d2}.tj-map-marker.current>span{box-shadow:0 0 0 4px #77baff3b,0 2px 9px #000d;animation:tjMapCurrent 1.8s ease-in-out infinite}@keyframes tjMapCurrent{50%{transform:scale(1.12);box-shadow:0 0 0 8px #77baff12,0 2px 9px #000d}}/* v158: attribuce OpenStreetMap patří do LEVÉHO dolního rohu. Vpravo ji
    překrývalo plovoucí tlačítko Reporty a zpoza jeho zaoblení vykukoval tmavý
    růžek – navíc smí attribuce zůstat čitelná, ne schovaná pod tlačítkem. */
 .tj-map-attribution{position:absolute;left:5px;right:auto;bottom:4px;z-index:6;border-radius:6px;background:#0b111bcc;color:#aebfd3;font-size:9px;padding:2px 5px;pointer-events:auto}.tj-map-attribution a{color:#d8eaff;text-decoration:none}.tj-map-zoom{position:absolute;right:8px;top:8px;z-index:7;display:grid;gap:5px}.tj-map-zoom button{width:33px!important;height:33px!important;margin:0!important;padding:0!important;border-radius:9px!important;background:#0e1828e8!important;border-color:#426485!important;color:#eaf4ff!important;font-size:20px!important;line-height:1!important}.tj-map-detail{border:1px solid var(--tj-line);border-radius:13px;background:#0e1724;margin-top:10px;padding:10px}.tj-map-detail h4{margin:0;color:#e8f2ff;font-size:13px;line-height:1.2}.tj-map-detail p{margin:5px 0 0;color:#a9bbd0;font-size:11.5px;line-height:1.38}.tj-map-detail .tj-map-detail-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.tj-map-detail .tj-map-detail-row a,.tj-map-detail .tj-map-detail-row button{display:inline-flex!important;width:auto!important;margin:0!important;padding:6px 8px!important;border-radius:8px!important;font-size:11px!important}.tj-map-detail img{display:block;width:100%;max-height:220px;object-fit:cover;border-radius:10px;border:1px solid #385575;margin-top:9px;cursor:pointer}.tj-map-legend{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;color:#aabbd0;font-size:10.5px}.tj-map-legend span{display:inline-flex;align-items:center;gap:4px;border:1px solid #2e405a;background:#101a29;border-radius:999px;padding:5px 7px}.tj-map-legend b{font-size:13px;line-height:1}.tj-map-offline{margin-top:9px;color:#a3b6cb;font-size:10.5px;line-height:1.32}.tj-map-offline strong{color:#dceaff}
@@ -2012,6 +2017,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     ensureJournalModal();
     registerIntegration();
     installDelegatedEvents();
+    installFormEnterSubmit();
     installMapExitHandling();
     window.go2noTripMap={open:()=>renderTripMap(true)};
     installFab();
@@ -2728,6 +2734,18 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     if(la>=47.2&&la<=55.1&&lo>=5.8&&lo<=15.1)return 'DE';
     return null;
   }
+  /* v163: „zhasínání“ cílů v mapě. Některé naplánované body byly jen zamýšlené
+     ubytování, kam nakonec nedošlo – do knihy nepatří. Skryté cíle drží
+     konfigurace (klíč mapHiddenTargets), takže se přenášejí synchronizací
+     a nezasahují do samotného itineráře. Skrytí je kdykoli vratné. */
+  const MAP_HIDDEN_KEY='go2no_map_hidden_v1';
+  function hiddenTargets(){ try{ return JSON.parse(localStorage.getItem(MAP_HIDDEN_KEY)||'{}')||{}; }catch(e){ return {}; } }
+  function isTargetHidden(legI){ return !!hiddenTargets()[String(legI)]; }
+  function setTargetHidden(legI,hide){
+    const m=hiddenTargets();
+    if(hide) m[String(legI)]=true; else delete m[String(legI)];
+    try{ localStorage.setItem(MAP_HIDDEN_KEY, JSON.stringify(m)); }catch(e){}
+  }
   function czkCeil(v){ const n=Number(v); return Number.isFinite(n)?Math.ceil(n):0; }
   function fmtCzkInt(v){ return Number(v||0).toLocaleString('cs-CZ')+' Kč'; }
   /* v133: papírový výdajový report. Částky v Kč se u každého záznamu zaokrouhlují
@@ -2961,7 +2979,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     /* v128: záznamy „cíl vynechán“ a „cíl vrácen mezi čekající“ se v deníku
        nezobrazují. V datech zůstávají (řídí stav cíle a synchronizaci), jen
        negenerují řádek zápisu. */
-    const rows=visibleEntries(j).filter(e=>e.type!=='skip'&&e.type!=='target');
+    const rows=visibleEntries(j).filter(e=>e.type!=='skip'&&e.type!=='target'&&e.type!=='via');
     const start=journalStart(j);
     if(start) rows.push(Object.assign({_tjStart:true,type:'start'},start));
     return rows.sort((a,b)=>ms(a.at)-ms(b.at)||ms(a.createdAt)-ms(b.createdAt));
@@ -3365,7 +3383,9 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     if(e.type==='fuel' && typeof updateAutoRefuelAverage==='function') updateAutoRefuelAverage();
   }
   async function deleteEntry(id){
-    const j=ensureJournal(), e=j.entries.find(x=>x&&x.id===id); if(!e) return; if(!confirm('Smazat tento záznam z cestovního deníku?\n\nZáznam zmizí z deníku, mapy i přehledů. Dokud aplikaci nezavřeš, lze smazání vrátit červeným tlačítkem krok zpět.')) return; try{ await deleteLocalPhoto(e.photoId||id); }catch(_){} e.deleted=true; e.updatedAt=nowIso(); persistJournal('smazání záznamu'); if(e.type==='fuel' && typeof updateAutoRefuelAverage==='function') updateAutoRefuelAverage(); renderJournal(); toast('Záznam smazán.');
+    const j=ensureJournal(), e=j.entries.find(x=>x&&x.id===id); if(!e) return; if(!confirm(e.type==='via'
+      ? 'Smazat tento průjezdní bod?\n\nZ vykreslené trasy zmizí; ostatní záznamy zůstanou beze změny. Dokud aplikaci nezavřeš, lze smazání vrátit červeným tlačítkem krok zpět.'
+      : 'Smazat tento záznam z cestovního deníku?\n\nZáznam zmizí z deníku, mapy i přehledů. Dokud aplikaci nezavřeš, lze smazání vrátit červeným tlačítkem krok zpět.')) return; try{ await deleteLocalPhoto(e.photoId||id); }catch(_){} e.deleted=true; e.updatedAt=nowIso(); persistJournal('smazání záznamu'); if(e.type==='fuel' && typeof updateAutoRefuelAverage==='function') updateAutoRefuelAverage(); renderJournal(); toast('Záznam smazán.');
   }
   function editEntry(id){ const e=ensureJournal().entries.find(x=>x&&x.id===id&&!x.deleted); if(!e)return; if(e.type==='note')openNoteForm(e.targetId,e); else if(e.type==='fuel')openFuelForm(e); else if(e.type==='pause')openPauseForm(e); else if(e.type==='lodging')openLodgingForm(e); else if(e.type==='odometer')openOdometerForm(e); else if(e.type==='end')openEndForm(e); else if(e.type==='arrival'||e.type==='skip'||e.type==='target')openTargetForm(e.targetId,e.status,e); else openExpenseForm(e); }
   function resetTrip(){
@@ -3474,6 +3494,8 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     if(e.type==='pause') return {kind:'pause',glyph:'📷',title:entryTitle(e)};
     if(e.type==='fuel') return {kind:'fuel',glyph:'⛽',title:entryTitle(e)};
     if(e.type==='lodging') return {kind:'lodging',glyph:'🛏',title:entryTitle(e)};
+    /* v164: průjezdní bod – vrchol skutečné trasy bez vlastního symbolu. */
+    if(e.type==='via') return {kind:'via',glyph:'•',title:'Průjezdní bod'};
     if(e.type==='odometer') return {kind:'other',glyph:'⌁',title:entryTitle(e)};
     if(e.type==='end') return {kind:'start',glyph:'🏁',title:entryTitle(e)};
     if(e.type==='arrival') return {kind:'other',glyph:'✓',title:entryTitle(e)};
@@ -3617,6 +3639,9 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     else if(t==='expense'&&cat==='ferry')key='ferry';
     else if(t==='expense'&&cat==='food')key='food';
     else if(t==='arrival')key='arrival';
+    /* v164: průjezdní body se kreslí jen v režimu jejich úprav, aby šly klepnutím
+       smazat; jinak zůstávají neviditelné a slouží pouze jako vrchol čáry. */
+    if(t==='via') return !!st.viaMode;
     return key?st.typeFilters[key]!==false:false;
   }
   /* v132: snímek aktuálního výřezu mapy do PNG – dlaždice OSM (crossorigin),
@@ -3712,7 +3737,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
         ctx.lineWidth=4.6*M; ctx.strokeStyle='rgba(155,27,60,.96)'; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
         line.forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,3.2*M,0,Math.PI*2); ctx.fillStyle='#ffe6ec'; ctx.fill(); ctx.lineWidth=2*M; ctx.strokeStyle='#7d132f'; ctx.stroke(); }); }
       const palette={fuel:['#15496e','#75c9ff'],lodging:['#17543b','#8fe0b1'],accommodation:['#17543b','#8fe0b1'],food:['#674416','#ffd278'],parking:['#1e53a0','#8dbbff'],ferry:['#1c5472','#8bd6ff'],pause:['#50385f','#e0a6ff'],start:['#1b693f','#9ce5b8'],note:['#172b45','#77baff'],other:['#3e4655','#b7c3d2']};
-      const show=[]; if(st.filters.tops)show.push(...st.data.tops); if(st.filters.targets)show.push(...st.data.targets); if(st.filters.events)show.push(...st.data.events.filter(p=>mapEventTypeVisible(st,p)));
+      const show=[]; if(st.filters.tops)show.push(...st.data.tops); if(st.filters.targets)show.push(...st.data.targets.filter(p=>st.showHidden||!isTargetHidden(p.leg&&p.leg.i))); if(st.filters.events)show.push(...st.data.events.filter(p=>mapEventTypeVisible(st,p)));
       /* v155: OPRAVA ZAMRZÁNÍ. Původní rozestrkávání značek po každém posunu
          restartovalo procházení celého seznamu (k=-1). Když leželo víc bodů blízko
          sebe – což u celé trasy nastane vždy – posun jednoho bodu ho zatlačil do
@@ -3734,9 +3759,8 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
         placed.push(q); return q; };
       const EMOJI='"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji","Twemoji Mozilla",sans-serif';
       show.forEach(p=>{ let q=at(p); if(q.x<-60*M||q.x>W+60*M||q.y<-60*M||q.y>H+60*M)return; q=spread(q);
-        if(p.kind==='target'){ const col=p.status==='visited'?['#207246','#b9ffd3']:p.status==='skipped'?['#353d49','#adb7c4']:['#1e5fae','#b9ddff'], R=13.7*M;
+        if(p.kind==='target'){ const col=p.status==='visited'?['#207246','#b9ffd3']:['#3d4653','#aab6c6'], R=13.7*M;
           ctx.beginPath(); ctx.arc(q.x,q.y,R,0,Math.PI*2); ctx.fillStyle=col[0]; ctx.fill(); ctx.lineWidth=2.2*M; ctx.strokeStyle=col[1]; ctx.stroke();
-          if(p.status==='skipped'){ ctx.beginPath(); ctx.moveTo(q.x-R*.75,q.y+R*.75); ctx.lineTo(q.x+R*.75,q.y-R*.75); ctx.lineWidth=2.2*M; ctx.strokeStyle='rgba(255,255,255,.92)'; ctx.stroke(); }
           ctx.fillStyle='#fff'; ctx.font=`700 ${12.5*M}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(String(p.label||''),q.x,q.y+.5*M); return; }
         if(p.kind==='top'){ const S=12.5*M; ctx.fillStyle='#674416'; ctx.strokeStyle='#ffd278'; ctx.lineWidth=2.2*M;
           ctx.beginPath(); if(ctx.roundRect)ctx.roundRect(q.x-S,q.y-S,2*S,2*S,7*M); else ctx.rect(q.x-S,q.y-S,2*S,2*S); ctx.fill(); ctx.stroke();
@@ -3788,7 +3812,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     if(!point)return '';
     if(point.kind==='target'){
       const status=point.status==='visited'?'Navštíveno':point.status==='skipped'?'Vynecháno':'Čeká'; const e=point.state, when=e?fmtDateTime(e.at):'';
-      return `<div class="tj-map-detail"><h4>Cíl ${esc(point.label)} · ${esc(point.title)}</h4><p>${esc(status)}${when?' · '+esc(when):''}${e&&e.note?' · '+esc(e.note):''}</p><div class="tj-map-detail-row"><a href="${escAttr(mapsLink(point))}" target="_blank" rel="noopener">↗ Otevřít v Mapy.com</a>${e?`<button data-tj-action="entry-detail" data-id="${escAttr(e.id)}">Detail záznamu</button>`:''}</div></div>`;
+      return `<div class="tj-map-detail"><h4>Cíl ${esc(point.label)} · ${esc(point.title)}</h4><p>${esc(status)}${when?' · '+esc(when):''}${e&&e.note?' · '+esc(e.note):''}</p><div class="tj-map-detail-row"><a href="${escAttr(mapsLink(point))}" target="_blank" rel="noopener">↗ Otevřít v Mapy.com</a>${e?`<button data-tj-action="entry-detail" data-id="${escAttr(e.id)}">Detail záznamu</button>`:''}<button data-tj-map-hide="${escAttr(String(point.leg&&point.leg.i))}">${isTargetHidden(point.leg&&point.leg.i)?'Zobrazit na mapě':'Skrýt na mapě'}</button></div></div>`;
     }
     if(point.kind==='top'){
       const item=point.item||{};
@@ -3839,7 +3863,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
   function renderTripMap(forceFit){
     openMapHistoryState();
     document.body.classList.add('g2n-trip-map-open');
-    const html=`<section class="tj-map-screen"><header class="tj-map-screen-head"><div><b>Mapa cesty</b></div><button class="tj-map-close" data-tj-action="close-map" aria-label="Zavřít mapu" title="Zavřít mapu">×<span>Zavřít mapu</span></button></header><div class="tj-map-screen-body"><div class="tj-map-shell"><div class="tj-map-toolbar"><button class="active" data-tj-map-filter="targets" title="Zobrazit nebo skrýt cíle itineráře">ITINERÁŘ</button><button class="active" data-tj-map-filter="tops" title="Zobrazit nebo skrýt TOP60">TOP60</button><button data-tj-map-filter="plan" title="Zobrazit nebo skrýt plánovanou linii">PLÁN</button><button class="active" data-tj-map-filter="events" title="Zobrazit nebo skrýt záznamy deníku">ZÁZNAMY</button><button class="active" data-tj-map-filter="route" title="Zobrazit nebo skrýt projetou stopu">STOPA</button><button data-tj-map-typemenu title="Filtr typů záznamů">FILTR</button></div><div class="tj-map-exportpop" hidden><button data-tj-map-export="view">Aktuální výřez</button><button data-tj-map-export="all">Celá trasa (plakát)</button></div><div class="tj-map-typepop" hidden><button class="active" data-tj-map-type="fuel" title="Tankování">⛽</button><button class="active" data-tj-map-type="ferry" title="Trajekty">⛴</button><button class="active" data-tj-map-type="lodging" title="Noclehy">🛏</button><button class="active" data-tj-map-type="food" title="Jídlo">🍽</button><button class="active" data-tj-map-type="arrival" title="Příjezdy k cílům">✓</button></div><div class="tj-map-viewport" id="tjTripMap"><div class="tj-map-tiles"></div><svg class="tj-map-overlay"></svg><div class="tj-map-markers"></div><div class="tj-map-zoom"><button data-tj-map-control="in" aria-label="Přiblížit" title="Přiblížit">+</button><button data-tj-map-control="out" aria-label="Oddálit" title="Oddálit">−</button><button data-tj-map-control="snapshot" aria-label="Uložit snímek mapy" title="Uložit aktuální výřez mapy jako PNG">📸</button></div><div class="tj-map-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div></div><div id="tjMapDetail"></div></div></section>`;
+    const html=`<section class="tj-map-screen"><header class="tj-map-screen-head"><div><b>Mapa cesty</b></div><button class="tj-map-close" data-tj-action="close-map" aria-label="Zavřít mapu" title="Zavřít mapu">×<span>Zavřít mapu</span></button></header><div class="tj-map-screen-body"><div class="tj-map-shell"><div class="tj-map-toolbar"><button class="active" data-tj-map-filter="targets" title="Zobrazit nebo skrýt cíle itineráře">ITINERÁŘ</button><button class="active" data-tj-map-filter="tops" title="Zobrazit nebo skrýt TOP60">TOP60</button><button data-tj-map-filter="plan" title="Zobrazit nebo skrýt plánovanou linii">PLÁN</button><button class="active" data-tj-map-filter="events" title="Zobrazit nebo skrýt záznamy deníku">ZÁZNAMY</button><button class="active" data-tj-map-filter="route" title="Zobrazit nebo skrýt projetou stopu">STOPA</button><button data-tj-map-typemenu title="Filtr typů záznamů">FILTR</button><button data-tj-map-via title="Přidávání průjezdních bodů do skutečné trasy">＋ BOD</button></div><div class="tj-map-exportpop" hidden><button data-tj-map-export="view">Aktuální výřez</button><button data-tj-map-export="all">Celá trasa (plakát)</button></div><div class="tj-map-typepop" hidden><button class="active" data-tj-map-type="fuel" title="Tankování">⛽</button><button class="active" data-tj-map-type="ferry" title="Trajekty">⛴</button><button class="active" data-tj-map-type="lodging" title="Noclehy">🛏</button><button class="active" data-tj-map-type="food" title="Jídlo">🍽</button><button class="active" data-tj-map-type="arrival" title="Příjezdy k cílům">✓</button><button data-tj-map-showhidden title="Dočasně ukázat skryté cíle">⦸</button></div><div class="tj-map-viewport" id="tjTripMap"><div class="tj-map-tiles"></div><svg class="tj-map-overlay"></svg><div class="tj-map-markers"></div><div class="tj-map-zoom"><button data-tj-map-control="in" aria-label="Přiblížit" title="Přiblížit">+</button><button data-tj-map-control="out" aria-label="Oddálit" title="Oddálit">−</button><button data-tj-map-control="snapshot" aria-label="Uložit snímek mapy" title="Uložit aktuální výřez mapy jako PNG">📸</button></div><div class="tj-map-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div></div><div id="tjMapDetail"></div></div></section>`;
     openJournalModal('Mapa cesty',html,'map');
     requestAnimationFrame(()=>initTripMap(forceFit!==false));
   }
@@ -3865,7 +3889,7 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     }).join(''):'';
     const timeline=st.filters.route?st.data.events:[], line=timeline.map(p=>mapPointScreen(st,p)).filter(p=>p.x>-200&&p.x<w+200&&p.y>-200&&p.y<h+200); const dots=timeline.map(p=>mapPointScreen(st,p)).filter(p=>p.x>=-4&&p.x<=w+4&&p.y>=-4&&p.y<=h+4);
     svg.setAttribute('viewBox',`0 0 ${w} ${h}`); svg.innerHTML=plannedSvg+(line.length>1?`<polyline class="tj-map-route" points="${line.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ')}"></polyline>`:'')+dots.map(p=>`<circle class="tj-map-route-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3"></circle>`).join('');
-    const show=[]; if(st.filters.tops)show.push(...st.data.tops); if(st.filters.targets)show.push(...st.data.targets); if(st.filters.events)show.push(...st.data.events.filter(p=>mapEventTypeVisible(st,p)));
+    const show=[]; if(st.filters.tops)show.push(...st.data.tops); if(st.filters.targets)show.push(...st.data.targets.filter(p=>st.showHidden||!isTargetHidden(p.leg&&p.leg.i))); if(st.filters.events)show.push(...st.data.events.filter(p=>mapEventTypeVisible(st,p)));
     /* Aktuální GPS je samostatný stav špendlíku, nikoli filtr deníku. */
     if(Array.isArray(st.data.current))show.push(...st.data.current);
     const markerPositions=mapMarkerPositions(st,show);
@@ -3941,6 +3965,10 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       if(point){
         if(st.ignoreMarkerClick){ st.ignoreMarkerClick=false; return; }
         const mapPoint=mapPointByKey(st,point.dataset.tjMapPoint);
+        if(st.viaMode && mapPoint && mapPoint.entry && mapPoint.entry.type==='via'){
+          deleteEntry(mapPoint.entry.id).then(()=>{ st.detailKey=''; st.data=tripMapData(); renderTripMapLayer(st); });
+          return;
+        }
         if(mapPoint&&mapPoint.kind==='top'&&mapPoint.item&&mapPoint.item.id){
           const highlightId=mapPoint.item.id;
           closeTripMap();
@@ -3957,6 +3985,12 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
         exportTripMapPng(st,exp.dataset.tjMapExport); return; }
       const typeMenu=e.target.closest('[data-tj-map-typemenu]');
       if(typeMenu){ const pop=shell.querySelector('.tj-map-typepop'); if(pop){ pop.hidden=!pop.hidden; typeMenu.classList.toggle('active',!pop.hidden); } return; }
+      const viaBtn=e.target.closest('[data-tj-map-via]');
+      if(viaBtn){ st.viaMode=!st.viaMode; viaBtn.classList.toggle('active',!!st.viaMode);
+        toast(st.viaMode?'Klepnutím do mapy přidáš průjezdní bod; klepnutím na bod jej smažeš.':'Přidávání průjezdních bodů vypnuto.');
+        renderTripMapLayer(st); return; }
+      const sh=e.target.closest('[data-tj-map-showhidden]');
+      if(sh){ st.showHidden=!st.showHidden; sh.classList.toggle('active',!!st.showHidden); renderTripMapLayer(st); return; }
       const typeBtn=e.target.closest('[data-tj-map-type]');
       if(typeBtn){ const k=typeBtn.dataset.tjMapType; if(!st.typeFilters)st.typeFilters={}; st.typeFilters[k]=!st.typeFilters[k]; renderTripMapLayer(st); return; }
       /* Klepnutí jinam do mapy panel filtrů zase sbalí. */
@@ -3964,6 +3998,34 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       if(popOpen){ popOpen.hidden=true; shell.querySelector('[data-tj-map-typemenu]')?.classList.remove('active'); }
       const expOpen=shell.querySelector('.tj-map-exportpop:not([hidden])');
       if(expOpen){ expOpen.hidden=true; shell.querySelector('[data-tj-map-control="snapshot"]')?.classList.remove('active'); }
+      /* v164: v režimu ＋ BOD vloží klepnutí do mapy průjezdní bod. Čas se
+         dopočítá promítnutím na nejbližší úsek dosavadní trasy, takže se bod
+         zařadí přesně mezi správné dva zápisy a čáru neroztrhne. */
+      if(st.viaMode && e.target.closest('.tj-map-viewport') && !e.target.closest('[data-tj-map-control],[data-tj-map-point],.tj-map-zoom,.tj-map-attribution')){
+        const rect=root.getBoundingClientRect();
+        const px=e.clientX-rect.left, py=e.clientY-rect.top;
+        const c=mapProject(st.center.lat,st.center.lon,st.zoom);
+        const geo=mapUnproject(c.x+(px-rect.width/2), c.y+(py-rect.height/2), st.zoom);
+        const track=(st.data.events||[]).filter(q=>q.entry&&q.entry.at).slice().sort((a,b)=>ms(a.entry.at)-ms(b.entry.at));
+        let when=null;
+        if(track.length>=2){
+          let best=null;
+          for(let i=1;i<track.length;i++){
+            const A=mapPointScreen(st,track[i-1]), B=mapPointScreen(st,track[i]);
+            const vx=B.x-A.x, vy=B.y-A.y, len2=vx*vx+vy*vy;
+            const t=len2>0?Math.max(0,Math.min(1,((px-A.x)*vx+(py-A.y)*vy)/len2)):0;
+            const cx=A.x+vx*t, cy=A.y+vy*t, d=Math.hypot(px-cx,py-cy);
+            if(!best||d<best.d) best={d:d,i:i,t:t};
+          }
+          const t1=ms(track[best.i-1].entry.at), t2=ms(track[best.i].entry.at);
+          when=new Date(t1+(t2-t1)*best.t).toISOString();
+        } else if(track.length===1){ when=new Date(ms(track[0].entry.at)+60000).toISOString(); }
+        if(!when){ toast('Průjezdní bod potřebuje aspoň jeden dřívější zápis s GPS.'); return; }
+        upsertEntry({id:uid('via'),type:'via',at:when,gps:{lat:geo.lat,lon:geo.lon,acc:0,ts:0}},'průjezdní bod');
+        st.data=tripMapData(); renderTripMapLayer(st);
+        toast('Průjezdní bod přidán ('+fmtDateTime(when)+').');
+        return;
+      }
       const control=e.target.closest('[data-tj-map-control]');
       if(control){
         const a=control.dataset.tjMapControl;
@@ -4148,6 +4210,23 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       if(added||converted) toast('Doplněno: '+added+' trajektů'+(converted?' + nocleh Smarthotel opraven':'')+'.');
     }catch(_){ }
   }
+  /* v165: záložní odeslání klávesou. V poli formuláře deníku odešle Enter (na
+     mobilní klávesnici ✓ / Hotovo) rovnou celý formulář, takže uložit lze i tehdy,
+     když se klepnutí na tlačítko z jakéhokoli důvodu ztratí. */
+  function installFormEnterSubmit(){
+    document.addEventListener('keydown',e=>{
+      if(e.key!=='Enter'||e.shiftKey)return;
+      const el=e.target;
+      if(!el||!el.form||el.tagName==='TEXTAREA')return;
+      if(!el.closest('#tjModal'))return;
+      const form=el.form;
+      e.preventDefault();
+      /* Formuláře deníku si ověřují hodnoty samy ve své obsluze, proto stačí
+         poslat událost submit napřímo – je to spolehlivější než requestSubmit,
+         který se v některých prostředích tiše neprovede. */
+      try{ form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); }catch(_){ }
+    },true);
+  }
   function installDelegatedEvents(){
     /* v131: záchrana němých klepnutí. Na telefonu uživatele se dotyk na některých
        tlačítkách rolety a deníkového modálu nikdy nepřeloží na click (dashboardové
@@ -4161,6 +4240,17 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
     document.addEventListener('pointerdown',e=>{
       const b=e.target.closest&&e.target.closest(RESCUE_SCOPE);
       rescuePtr=b?{b:b,x:e.clientX,y:e.clientY,t:Date.now()}:null;
+    },true);
+    /* v163: karta s podrobnostmi bodu leží mimo mapový rám, proto se tlačítko
+       „Skrýt / Zobrazit na mapě“ obsluhuje na úrovni dokumentu. */
+    document.addEventListener('click',e=>{
+      const hb=e.target.closest&&e.target.closest('[data-tj-map-hide]');
+      if(!hb||!tjMapState)return;
+      e.preventDefault(); e.stopPropagation();
+      const id=hb.dataset.tjMapHide;
+      setTargetHidden(id,!isTargetHidden(id));
+      tjMapState.detailKey='';
+      renderTripMapLayer(tjMapState);
     },true);
     document.addEventListener('click',e=>{
       const b=e.target.closest&&e.target.closest(RESCUE_SCOPE);
@@ -4181,7 +4271,15 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
         if(b.__g2nClickAt&&b.__g2nClickAt>=upAt-50)return; /* click v pořádku dorazil */
         if(!b.isConnected)return;
         b.__g2nSynthAt=Date.now();
-        try{ b.click(); }catch(_){ }
+        /* v165: u odesílacích tlačítek formuláře je spolehlivější požádat přímo
+           formulář o odeslání – .click() se v některých prohlížečích na tlačítku
+           typu submit neprojeví, což se projevovalo jako „tlačítko Uložit
+           nereaguje“. */
+        let sent=false;
+        if(b.type==='submit' && b.form){
+          try{ b.form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); sent=true; }catch(_){ }
+        }
+        if(!sent){ try{ b.click(); }catch(_){ } }
       },250);
     },true);
     document.addEventListener('click',e=>{
@@ -8080,6 +8178,10 @@ body.family-view [data-tj-action="end"]{display:none!important}
 .tj-map-typepop[hidden]{display:none}
 .tj-map-typepop button{width:34px;height:34px;padding:0;border:1px solid #3a4a60;border-radius:9px;background:#141e2c;color:#cfe2f7;font-size:15px;opacity:.42;cursor:pointer}
 .tj-map-typepop button.active{opacity:1;border-color:#69afff;background:#1c2f47}
+/* v164: průjezdní body – malý bordó puntík, viditelný jen v režimu ＋ BOD. */
+.tj-map-marker.event.via>span{width:16px;height:16px;min-width:0;padding:0;border-radius:50%;background:#9b1b3c;border-color:#ffd7e2;font-size:0}
+.tj-map-toolbar button[data-tj-map-via].active{border-color:#ffb3c4!important;background:linear-gradient(135deg,#a52746,#761a31)!important;color:#fff!important}
+
 /* v152: volba rozsahu exportu – aktuální výřez nebo celá trasa. */
 .tj-map-exportpop{position:absolute;z-index:9;top:46px;right:56px;display:flex;flex-direction:column;gap:5px;padding:6px;border-radius:12px;background:rgba(15,25,38,.95);border:1px solid #35506e;box-shadow:0 10px 24px #000a}
 .tj-map-exportpop[hidden]{display:none}
