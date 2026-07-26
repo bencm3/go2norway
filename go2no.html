@@ -4,6 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
 <!-- go2no v146: dlaždice „Zápis během cesty“ na kartách cílů má místo písmen „Ab“ symbol dolaru (tvar dlaždice, barva i velikost zůstávají). -->
+<!-- go2no v159: import stavu ze serveru už nespadne, když je úložiště prohlížeče plné. Uložení nastavení se zkusí nejprve celé, pak odlehčené bez snímku počasí, a když ani to neprojde, data zůstanou načtená v paměti a uživatel dostane srozumitelnou hlášku místo přerušeného stahování. -->
 <!-- go2no v158: tmavý růžek zpoza tlačítka Reporty byl pruh s attribucí OpenStreetMap, který seděl v pravém dolním rohu mapy přesně pod tlačítkem. Attribuce se přesunula do levého dolního rohu – tam ji nic nepřekrývá a zůstává čitelná, jak má být. -->
 <!-- go2no v157: v celoobrazovkové mapě má rám mapy nulové zaoblení, okraj i stín – z pravého dolního rohu jinak zpoza tlačítka Reporty vykukoval tmavý růžek podkladu okna. -->
 <!-- go2no v156: (1) trajekt a odbavený cíl se v exportu kreslí jako vektorové tvary – znaky ⛴ a ✓ nemá řada systémových emoji fontů, proto z nich v plátně zbývaly prázdné rámečky (na displeji má trajekt vlastní vloženou grafiku, kterou plátno nepoužívá). (2) Skutečně projetá trasa je bordó a silnější, na displeji i v exportu. (3) Symboly jsou zhruba o 14 % větší a smějí se překrývat asi do 30 % plochy, takže zůstávají blíž skutečné poloze. -->
@@ -6024,7 +6025,23 @@ async function applyOnlineState(data){
   onlineApplying = true;
   try{
     legs = normalizeTargets(data.legs);
-    if(data.cfg){ cfg = Object.assign({}, DEFAULT_CFG, cfg||{}, data.cfg); localStorage.setItem(CFGKEY, JSON.stringify(cfg)); }
+    if(data.cfg){
+      cfg = Object.assign({}, DEFAULT_CFG, cfg||{}, data.cfg);
+      /* v159: uložení nastavení už nesmí shodit celý import. Když je úložiště
+         prohlížeče plné (typicky u souboru otevřeného z disku, kde bývá kvóta
+         jen pár set kB), zkusí se uložit odlehčená verze bez snímku počasí;
+         nepovede-li se ani to, stav zůstane načtený v paměti a uživatel dostane
+         srozumitelnou hlášku místo přerušeného stahování. */
+      let cfgSaved=false;
+      try{ localStorage.setItem(CFGKEY, JSON.stringify(cfg)); cfgSaved=true; }
+      catch(e){
+        try{
+          const lite=Object.assign({},cfg); delete lite.weatherSnapshot;
+          localStorage.setItem(CFGKEY, JSON.stringify(lite)); cfgSaved=true;
+        }catch(e2){ }
+      }
+      if(!cfgSaved) toast('Data jsou načtená, ale úložiště prohlížeče je plné – po zavření se neuloží.');
+    }
     try{ localStorage.setItem(LS, JSON.stringify(legs)); }catch(e){ toast('Plná paměť – exportuj soubor'); }
     const imgs=data.images||{};
     for(const k of Object.keys(imgs)){
