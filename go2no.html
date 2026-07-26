@@ -4,6 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
 <title>go2no</title>
 <!-- go2no v146: dlaždice „Zápis během cesty“ na kartách cílů má místo písmen „Ab“ symbol dolaru (tvar dlaždice, barva i velikost zůstávají). -->
+<!-- go2no v173: srovnání okolí Tungestølen. Večeře „v chatě Tungestølen“ ze 7. 7. měla uloženou polohu Gaupne 23 km daleko (zapsána dodatečně cestou, ještě před opravou dosazování polohy při editaci), což v mapě tvořilo falešnou zajížďku do údolí a zpět. Poloha opravena na chatu a mezi ledovec a Gaupne vložen průjezdní bod u chaty, takže trasa odpovídá skutečnosti: pěšky k Austerdalsbreen a stejnou cestou zpět, teprve pak autem dolů. -->
 <!-- go2no v172: uložení formuláře deníku i tehdy, když klepnutí zachytí jiná vrstva. Posluchač se při puštění prstu zeptá prohlížeče na všechny prvky v daném bodě; leží-li pod prstem odesílací tlačítko formuláře, odešle formulář sám a klepnutí do překrývající vrstvy pohltí. Nezávisí tedy na tom, co přesně tlačítko překrývá. -->
 <!-- go2no v171: nalezena skutečná příčina „mrtvého“ tlačítka Uložit. Plovoucí tlačítko Reporty je fixované v pravém dolním rohu a leží NAD modálem (vrstva 69 proti 60), takže překrývalo pravé tlačítko v řádku akcí formuláře – klepnutí dopadlo na ně, ne na uložení; levé „Zpět“ proto fungovalo. Ve formuláři se teď plovoucí tlačítko schová a v deníku i přehledech zůstává dole volné místo, aby poslední řádek nekončil pod ním. -->
 <!-- go2no v170: položka 90 NOK u Smarthotelu Forus upřesněna na „2× voda 0,5 l“ a přeřazena z ostatních útrat mezi potraviny. Běží pod vlastním zámkem, takže se úprava provede i v deníku, kde už předchozí srovnání s výpisem proběhlo. -->
@@ -4356,6 +4357,22 @@ body.family-view .tj-fab,.family-view .tj-write{display:none!important}
       /* Duplicita 6. 7. */
       const dup=byId('lodging-15992204-99b2-4e75-98fb-29b01d90dee6');
       if(dup&&!dup.deleted){ upsertEntry(Object.assign({},dup,{deleted:true}),'odstranění duplicity'); done++; }
+      /* v173: srovnání okolí Tungestølen. Večeře „v chatě Tungestølen“ z 7. 7.
+         má uloženou polohu Gaupne (23 km daleko) – zapsána byla zjevně dodatečně
+         cestou, ještě než aplikace přestala u editace dosazovat aktuální polohu.
+         Tím vznikla v mapě falešná zajížďka z chaty do Gaupne a zpět. Poloha se
+         opraví na chatu a mezi ledovec a Gaupne se vloží průjezdní bod u chaty,
+         aby trasa odpovídala skutečnosti: z chaty pěšky k ledovci a stejnou
+         cestou zpět, teprve pak autem dolů do údolí. */
+      if(localStorage.getItem('g2n_backfill3_v1')!=='1'){
+        const jj=ensureJournal(), all=(jj&&Array.isArray(jj.entries))?jj.entries:[];
+        const dinner=all.find(x=>x&&x.id==='expense-933215c1-4e71-46d3-834e-d308d38c1e21');
+        if(dinner&&!dinner.deleted) upsertEntry(Object.assign({},dinner,{gps:{lat:61.54401,lon:6.97194,acc:0,ts:0}}),'oprava polohy večeře v chatě');
+        if(!all.some(x=>x&&x.id==='via-tungestolen-2607'))
+          upsertEntry({id:'via-tungestolen-2607',type:'via',at:'2026-07-08T12:20:00.000Z',
+            gps:{lat:61.54401,lon:6.97194,acc:0,ts:0}},'návrat od ledovce k chatě');
+        try{ localStorage.setItem('g2n_backfill3_v1','1'); }catch(_){ }
+      }
       try{ localStorage.setItem('g2n_backfill2_done_v1','1'); }catch(_){ }
       if(done) toast('Deník srovnán s výpisem z účtu ('+done+' úprav).');
       /* v170: upřesnění popisu jedné doplněné položky – 90 NOK u Smarthotelu byly
